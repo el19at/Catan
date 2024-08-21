@@ -2,9 +2,9 @@ from Board import LUMBER, BRICK, ORE, WOOL, GRAIN, VILLAGE, CITY, ROAD, DEV_CARD
 from Player import Player
 
 class Constrution():
-    def __init__(self, type_of: int, player: Player) -> None:
+    def __init__(self, type_of: int, player_id: int) -> None:
         self.type_of: int = type_of
-        self.player: int = player
+        self.player_id = player_id
         self.coord: list[list['int']] = []
         self.price = self.init_price()
     
@@ -27,7 +27,9 @@ class Constrution():
             return {LUMBER:1, BRICK:1}
         if self.type_of == DEV_CARD:
             return {ORE:1, WOOL:1, GRAIN:1}
+    
 
 class Dev_card(Constrution):
-    def __init__(self, type_of: int, player: Player, action: int) -> None:
-        super().__init__(type_of, player)
+    def __init__(self, type_of: int, action: int) -> None:
+        super().__init__(type_of, -1)
+        self.action = action

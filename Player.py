@@ -2,7 +2,8 @@ from Board import LUMBER, BRICK, ORE, WOOL, GRAIN, VILLAGE, CITY, ROAD, DEV_CARD
 from Construction import Constrution
 from Point import Point
 class Player():
-    def __init__(self) -> None:
+    def __init__(self, id) -> None:
+        self.id = id
         self.constructions: dict[int:list['Constrution']] = {}
         self.constructions_counter: dict[int:int]= {}
         self.resources: dict[int:int] = {}
@@ -16,9 +17,9 @@ class Player():
         self.dev_card_allowed = True
     
     def init_constructions(self):
-        self.constructions[ROAD] = [Constrution(ROAD, self) for _ in range(15)]
-        self.constructions[VILLAGE] = [Constrution(VILLAGE, self) for _ in range(5)]
-        self.constructions[CITY] = [Constrution(CITY, self) for _ in range(4)]
+        self.constructions[ROAD] = [Constrution(ROAD, self.id) for _ in range(15)]
+        self.constructions[VILLAGE] = [Constrution(VILLAGE, self.id) for _ in range(5)]
+        self.constructions[CITY] = [Constrution(CITY, self.id) for _ in range(4)]
         self.constructions[DEV_CARD] = []
         self.constructions_counter = {ROAD:15, VILLAGE:5, CITY:4, DEV_CARD:0}
     
@@ -39,13 +40,17 @@ class Player():
                 return construction
         return None
     
-    def place_village(self, village: Constrution, points: Point, isFirst: bool = False, isSecond: bool = False):
-        if not points[0] in self.valid_village_postions:
+    def place_village(self, village: Constrution, point: Point, isFirst: bool = False, isSecond: bool = False):
+        if not point in self.valid_village_postions:
             return False
         if not(isFirst or isSecond):
-            if not self in [construction.player for construction in points[0].constructions if construction.type_of == ROAD]:
+            road_points = []
+            for road in self.constructions[ROAD]:
+                for road_edge in road.coord:
+                    road_points.append(road_edge)
+            if not points_to_coords([point])[0] in road_points:
                 return False
-        self.place_construction(village, points)
+        self.place_construction(village, point)
     
     def place_construction(self, construction: Constrution, points: list['Point']):
         for point in points:
@@ -57,7 +62,22 @@ class Player():
         if not set(point1, point2) in self.valid_roads_positions:
             return False
         self.place_construction(road, [point1, point2])
-        
+        return True
+    
+    def place_city(self, city: Constrution, point:Point):
+        village_to_replace = None
+        for village in self.constructions[VILLAGE]:
+            if village.coord == points_to_coords([point]):
+                village_to_replace = village
+                break
+        if not village_to_replace:
+            return False
+        self.constructions_counter[VILLAGE] += 1
+        self.constructions_counter[CITY] -= 1
+        city.coord = village_to_replace.coord
+        village_to_replace.remove()
+        point.constructions.remove(village_to_replace)
+        point.build_on_point(city)
         return True
 
 def points_to_coords(points: list['Point']):

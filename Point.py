@@ -1,4 +1,4 @@
-from Construction import Constrution
+from Construction import Constrution, VILLAGE, CITY
 class Point():
     def __init__(self, row: int, column: int) -> None:
         self.row: int = row
@@ -13,3 +13,9 @@ class Point():
         if self.row % 2 == 0:
             return [[i-1, j], [i+i,j-1], [i+i, j+1]]
         return [[i-1, j-1], [i-1, j+1], [i+1, j]]
+    
+    def get_collector(self) -> Constrution:
+        for constrution in self.constructions:
+            if constrution.type_of in [VILLAGE, CITY]:
+                return constrution
+        return None

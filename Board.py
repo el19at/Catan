@@ -1,7 +1,7 @@
 from Tile import Tile
 from Point import Point
 from Player import Player, points_to_coords
-from Construction import Constrution
+from Construction import Constrution, Dev_card
 import random
 DESERT = 0
 SEA = 1
@@ -18,6 +18,11 @@ RED = 11
 BLUE = 12
 ORANGE = 13
 WHITE = 14
+KNIGHT = 15
+VICTORY_POINT = 16
+MONOPOLY = 17
+ROADS_BUILD = 18
+YEAR_OF_PLENTY = 19
 
 TILES_NUMBERS = 2*[i for i in range(3, 7)] + 2*[i for i in range(8, 12)] + [2, 12, 0]
 TILES_RESOURCES = [DESERT] + 4*[WOOL, GRAIN, LUMBER] + 3*[BRICK, ORE]
@@ -49,6 +54,7 @@ class Board:
                 if tile.resurce != SEA:
                     self.set_valid_village_postions(tile)
                     self.set_valid_road_positions(tile)
+        self.dev_cards = [Dev_card(DEV_CARD, KNIGHT) for _ in range(14)]+[Dev_card(DEV_CARD, VICTORY_POINT) for _ in range(5)]+[Dev_card(DEV_CARD, ROADS_BUILD) for _ in range(2)]+[Dev_card(DEV_CARD, YEAR_OF_PLENTY) for _ in range(2)]+[Dev_card(DEV_CARD, MONOPOLY) for _ in range(2)]
                     
     def set_valid_village_postions(self, tile: Tile):
         for player in self.players.values():
@@ -179,22 +185,17 @@ class Board:
         city = player.buy(CITY)
         if not city:
             return False
-        village_to_replace = None
-        for village in player.constructions[VILLAGE]:
-            if village.coord == points_to_coords([point]):
-                village_to_replace = village
-                break
-        if not village_to_replace:
-            return False
-        player.constructions_counter[VILLAGE] += 1
-        player.constructions_counter[CITY] -= 1
-        city.coord = village_to_replace.coord
-        village_to_replace.remove()
-        point.constructions.remove(village_to_replace)
-        point.build_on_point(city)
-        return True
+        return player.place_city(city, point)
     
-    d
+    def give_recources(self, dice_sum: int):
+        for tile in self.tiles:
+            if tile.number != dice_sum:
+                continue
+            for point in tile.points:
+                collector = point.get_collector()
+                if not collector:
+                    continue
+                self.players[collector.player_id].resources[tile.recource] += (1 if collector.type_of == VILLAGE else 2)
         
     def is_sea_point(self, point: Point):
         return all(x == SEA for x in [tile.resurce for tile in self.get_tiles_of_point(point)])
