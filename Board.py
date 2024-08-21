@@ -23,12 +23,13 @@ VICTORY_POINT = 16
 MONOPOLY = 17
 ROADS_BUILD = 18
 YEAR_OF_PLENTY = 19
+THREE_TO_ONE = 20
 
 TILES_NUMBERS = 2*[i for i in range(3, 7)] + 2*[i for i in range(8, 12)] + [2, 12, 0]
 TILES_RESOURCES = [DESERT] + 4*[WOOL, GRAIN, LUMBER] + 3*[BRICK, ORE]
 #from Game import TILES_NUMBERS, TILES_RESOURCES, DESERT, SEA, LUMBER, BRICK, ORE, WOOL, GRAIN
 class Board:
-    def __init__(self, num_of_player: int = 3):
+    def __init__(self, num_of_players: int = 3):
         self.turn = -1
         numbers = TILES_NUMBERS.copy()
         resources = TILES_RESOURCES.copy()
@@ -46,15 +47,21 @@ class Board:
         self.points = {}
         self.init_points()
         self.set_tiles_points()
+        self.num_of_players = num_of_players
         self.players = {RED: Player(), BLUE:Player(), ORANGE: Player()}
-        if num_of_player == 4:
+        if num_of_players == 4:
             self.players[WHITE] = Player()
         for row in self.tiles:
             for tile in row:
                 if tile.resurce != SEA:
                     self.set_valid_village_postions(tile)
                     self.set_valid_road_positions(tile)
-        self.dev_cards = [Dev_card(DEV_CARD, KNIGHT) for _ in range(14)]+[Dev_card(DEV_CARD, VICTORY_POINT) for _ in range(5)]+[Dev_card(DEV_CARD, ROADS_BUILD) for _ in range(2)]+[Dev_card(DEV_CARD, YEAR_OF_PLENTY) for _ in range(2)]+[Dev_card(DEV_CARD, MONOPOLY) for _ in range(2)]
+        self.dev_cards = [Dev_card(DEV_CARD, KNIGHT) for _ in range(14)]
+        +[Dev_card(VICTORY_POINT) for _ in range(5)]
+        +[Dev_card(ROADS_BUILD) for _ in range(2)]
+        +[Dev_card(YEAR_OF_PLENTY) for _ in range(2)]
+        +[Dev_card(MONOPOLY) for _ in range(2)]
+        random.shuffle(self.dev_cards)
                     
     def set_valid_village_postions(self, tile: Tile):
         for player in self.players.values():
@@ -196,7 +203,18 @@ class Board:
                 if not collector:
                     continue
                 self.players[collector.player_id].resources[tile.recource] += (1 if collector.type_of == VILLAGE else 2)
-        
+    
+    def buy_dev_card(self, player: Player):
+        if len(self.dev_cards) < 1:
+            return
+        if player.buy_dev_card(self.dev_cards[0]):
+            del self.dev_cards[0]
+    
+    def end_turn(self, player: Player):
+        for dev_card in player.constructions[DEV_CARD]:
+            dev_card.allow_use()
+        self.turn = RED + ((self.turn+1) % self.num_of_players) 
+       
     def is_sea_point(self, point: Point):
         return all(x == SEA for x in [tile.resurce for tile in self.get_tiles_of_point(point)])
     

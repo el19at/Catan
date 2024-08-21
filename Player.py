@@ -1,5 +1,5 @@
-from Board import LUMBER, BRICK, ORE, WOOL, GRAIN, VILLAGE, CITY, ROAD, DEV_CARD
-from Construction import Constrution
+from Board import LUMBER, BRICK, ORE, WOOL, GRAIN, VILLAGE, CITY, ROAD, DEV_CARD, THREE_TO_ONE
+from Construction import Constrution, Dev_card
 from Point import Point
 class Player():
     def __init__(self, id) -> None:
@@ -15,6 +15,7 @@ class Player():
         self.valid_village_postions: list['Point'] = []
         self.valid_roads_positions: list[set['Point']] = []
         self.dev_card_allowed = True
+        self.ports = {LUMBER:False, BRICK:False, ORE:False, WOOL:False, GRAIN:False, THREE_TO_ONE:False}
     
     def init_constructions(self):
         self.constructions[ROAD] = [Constrution(ROAD, self.id) for _ in range(15)]
@@ -79,6 +80,27 @@ class Player():
         point.constructions.remove(village_to_replace)
         point.build_on_point(city)
         return True
-
+    
+    def buy_dev_card(self, dev_card: Dev_card):
+        for resource, amount in self.resources.items():
+            if amount < dev_card.price[resource]:
+                return False
+        for resource, amount in self.resources.items():
+            self.resources[resource] -= dev_card.price[resource]
+        self.constructions[DEV_CARD].append(dev_card)
+        self.constructions_counter[DEV_CARD] += 1
+        return True
+    
+    def accept_propse(self, propse: list[dict[int:int]]):
+        give = propse[0]
+        take = propse[1]
+        for resource in give.keys():
+            if self.resources[resource] < give[resource]:
+                return False
+        for resource in give.keys():
+            self.resources[resource] -= give[resource]
+        for resource in take.keys():
+            self.resources[resource] += take[resource]
+        
 def points_to_coords(points: list['Point']):
     return [[point.row, point.column] for point in points]    

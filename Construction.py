@@ -30,6 +30,10 @@ class Constrution():
     
 
 class Dev_card(Constrution):
-    def __init__(self, type_of: int, action: int) -> None:
-        super().__init__(type_of, -1)
+    def __init__(self, action: int) -> None:
+        super().__init__(DEV_CARD, -1)
         self.action = action
+        self.is_allowed = False
+    
+    def allow_use(self):
+        self.is_allowed = True
