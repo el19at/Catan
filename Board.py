@@ -1,6 +1,7 @@
 from Tile import Tile
 from Point import Point
-from Player import Player
+from Player import Player, points_to_coords
+from Construction import Constrution
 import random
 DESERT = 0
 SEA = 1
@@ -55,9 +56,6 @@ class Board:
                 if not point in player.valid_village_postions: 
                     player.valid_village_postions.append(point)
 
-    def set_valid_road_positions(self, tile: Tile):
-        for point in tile.points:
-            for neib in point.get_neib_points_coord()
 
     def init_row(self, row: list["Tile"], numbers, resources, up: bool):
         if len(row) <= 3:
@@ -119,13 +117,97 @@ class Board:
                                self.get_point(i*2+3, 2*j+1+r),
                                self.get_point(2*(i+1), 2*j+r),
                                self.get_point(2*i +1, 2*j+r)]
+    
+    def get_tiles_of_point(self, point: Point) -> list['Tile']:
+        return [tile for tile in self.tiles if point in tile.points]
             
+    def roll_dices(self):
+        return [random.randint(1, 6), random.randint(1,6)]
+    
+    def place_village(self, player: Player, point: Point, isFirst: bool = False, isSecond: bool = False):
+        village: Constrution = None
+        if isFirst or isSecond:
+            village = player.constructions[VILLAGE][-1 if isFirst else -2]
+        else:
+            village  = player.buy(VILLAGE)
+            if village == None:
+                return False
+        player.place_village(point)
+        tiles = self.get_tiles_of_point(point)
+        self.update_valid_road_positions(player, point)
+        neib_points = [self.get_point(coord[0], coord[1]) for coord in point.get_neib_points_coord() if self.get_point(coord[0], coord[1])]
+        for playerGame in self.players:
+            if point in playerGame.valid_village_postions:
+                playerGame.valid_village_postions.remove(point)
+            for neib_point in neib_points:
+                if neib_point in playerGame.valid_village_postions:
+                    playerGame.valid_village_postions.remove(neib_point)
+        if isSecond:
+            for tile in tiles:
+                if not tile.resurce in [DESERT, SEA]:
+                    player.resources[tile.resurce] += 1
+        return True
+    
+    def update_valid_road_positions(self, player:Player, point: Point):
+        neib_points = [self.get_point(coord[0], coord[1]) for coord in point.get_neib_points_coord() if self.get_point(coord[0], coord[1])]
+        for neib_point in neib_points:
+            if not self.is_sea_point(neib_point):
+                road_poses = [] 
+                for gamePlayer in self.players:
+                    for pos in self.get_construction_position(gamePlayer, ROAD):
+                        road_poses.append(set(pos))
+                if not set(point, neib_point) in road_poses:
+                    player.valid_roads_positions.append((point, neib_points))
+                
+    def place_road(self, player: Player, point1: Point, point2: Point, isStart: bool):
+        road: Constrution = None
+        if isStart:
+            road = player.constructions[ROAD][-2 if player.constructions[ROAD][-1].isPlaced() else -2]
+        else:
+            road = player.buy(ROAD)
+            if not road:
+                return False
+        player.place_road(road, point1, point2)
+        for gamePlayer in self.players.values():
+            if set(point1, point2) in gamePlayer.valid_roads_positions:
+                gamePlayer.valid_roads_positions.remove(set(point1, point2))
+        for point in [point1, point2]:
+            self.update_valid_road_positions(player, point)
+        return True
+    
+    def place_city(self, player:Player, point: Point):
+        city = player.buy(CITY)
+        if not city:
+            return False
+        village_to_replace = None
+        for village in player.constructions[VILLAGE]:
+            if village.coord == points_to_coords([point]):
+                village_to_replace = village
+                break
+        if not village_to_replace:
+            return False
+        player.constructions_counter[VILLAGE] += 1
+        player.constructions_counter[CITY] -= 1
+        city.coord = village_to_replace.coord
+        village_to_replace.remove()
+        point.constructions.remove(village_to_replace)
+        point.build_on_point(city)
+        return True
+    
+    d
+        
+    def is_sea_point(self, point: Point):
+        return all(x == SEA for x in [tile.resurce for tile in self.get_tiles_of_point(point)])
+    
+    def get_construction_position(self, player: Player, type_of: int):
+        return [construction.coord for construction in player.constructions[type_of]]
+    
     def to_string(self):
         num_to_rec = {}
         num_to_rec[0] = 'DESERT'
         num_to_rec[1] = 'SEA'
         num_to_rec[2] = 'LUMBER'
-        num_to_rec[3] = 'BRICK' 
+        num_to_rec[3] = 'BRICK'
         num_to_rec[4] = 'ORE'
         num_to_rec[5] = 'WOOL'
         num_to_rec[6] = 'GRAIN'

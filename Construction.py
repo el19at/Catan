@@ -11,6 +11,10 @@ class Constrution():
     def place(self, coord: list[list['int']]):
         self.coord = coord
     
+    def remove(self):
+        if self.type_of == VILLAGE:
+            self.coord = []
+        
     def is_placed(self):
         return len(self.coord)>0
     
@@ -23,3 +27,7 @@ class Constrution():
             return {LUMBER:1, BRICK:1}
         if self.type_of == DEV_CARD:
             return {ORE:1, WOOL:1, GRAIN:1}
+
+class Dev_card(Constrution):
+    def __init__(self, type_of: int, player: Player, action: int) -> None:
+        super().__init__(type_of, player)

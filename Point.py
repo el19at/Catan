@@ -3,7 +3,7 @@ class Point():
     def __init__(self, row: int, column: int) -> None:
         self.row: int = row
         self.column: int = column
-        self.construction: list['Constrution'] = []
+        self.constructions: list['Constrution'] = []
         
     def build_on_point(self, construction: Constrution):
         self.construction.append(construction)
