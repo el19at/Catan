@@ -12,3 +12,5 @@ class Tile():
     def unrobb(self):
         self.robbed = False
     
+    def is_robbed(self):
+        return self.robbed

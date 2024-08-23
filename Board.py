@@ -35,10 +35,11 @@ class Board:
         resources = TILES_RESOURCES.copy()
         random.shuffle(numbers)
         random.shuffle(resources)
-        self.tiles = [[Tile(resources[0], numbers[0])]]
+        self.tiles:list[list['Tile']] = [[Tile(resources[0], numbers[0])]]
         for i in range(1, 5):
             newTile = Tile(resources[i], numbers[i])
             self.tiles[0].append(newTile)
+        self.robbed_tile: Tile = None
         self.init_row(self.tiles[0], numbers[5:], resources[5:], False)
         self.init_row(self.tiles[0], numbers[12:], resources[12:], True)
         self.swap_desert()
@@ -48,7 +49,7 @@ class Board:
         self.init_points()
         self.set_tiles_points()
         self.num_of_players = num_of_players
-        self.players = {RED: Player(), BLUE:Player(), ORANGE: Player()}
+        self.players: dict[int:Player] = {RED: Player(), BLUE:Player(), ORANGE: Player()}
         if num_of_players == 4:
             self.players[WHITE] = Player()
         for row in self.tiles:
@@ -96,6 +97,7 @@ class Board:
                     break
         zero.number = desert.number
         desert.number = 0
+        self.robbed_tile = desert
     
     def sea_padding(self, size):
         if (size - len(self.tiles)) % 2 != 0:
@@ -172,14 +174,16 @@ class Board:
                 if not set(point, neib_point) in road_poses:
                     player.valid_roads_positions.append((point, neib_points))
                 
-    def place_road(self, player: Player, point1: Point, point2: Point, isStart: bool):
+    def place_road(self, player: Player, point1: Point, point2: Point, freeRoad: bool):
         road: Constrution = None
-        if isStart:
-            road = player.constructions[ROAD][-2 if player.constructions[ROAD][-1].isPlaced() else -2]
+        if freeRoad:
+            for playerRoad in player.constructions[ROAD]:
+                if not playerRoad.is_placed():
+                    road = playerRoad
         else:
             road = player.buy(ROAD)
-            if not road:
-                return False
+        if not road:
+            return False
         player.place_road(road, point1, point2)
         for gamePlayer in self.players.values():
             if set(point1, point2) in gamePlayer.valid_roads_positions:
@@ -196,7 +200,7 @@ class Board:
     
     def give_recources(self, dice_sum: int):
         for tile in self.tiles:
-            if tile.number != dice_sum:
+            if tile.number != dice_sum or tile.is_robbed():
                 continue
             for point in tile.points:
                 collector = point.get_collector()
@@ -237,6 +241,58 @@ class Board:
                 res += f'({num_to_rec[tile.resurce]}, {tile.number})'
             res += '\n'
         return res
+    
+    def use_dev_card(self, player: Player, card: Dev_card):
+        if card.action == VICTORY_POINT:
+            return False
+        if not (player.dev_card_allowed and card.allow_use and not card.used):
+            return False
+        return True
+    
+    def use_year_of_plenty(self, player: Player, first_resource: int, second_resource: int):
+        player.resources[first_resource] += 1
+        player.resources[second_resource] += 1
+    
+    def use_monopoly(self, player: Player, resource: int):
+        get = 0
+        for gamePlayer in self.players:
+            get += gamePlayer.resources[resource]
+            gamePlayer.resources[resource] = 0
+        player.resources[resource] = get
+    
+    def use_road_building(self, player: Player, location1: list[list[int]], location2:list[list[int]]):
+        self.place_road(player, location1[0], location1[1], True)
+        self.place_road(player, location2[0], location2[1], True)
+    
+    def use_knight(self, player: Player, tile: Tile, playerToRobb: Player, fromDice:bool = True):
+        self.robbed_tile.unrobb()
+        self.robbed_tile = tile
+        tile.robb()
+        if playerToRobb.get_num_of_resources() > 0:
+            resource = random.choice([key for key in playerToRobb.resources.keys() if playerToRobb.resources[key]>0])
+            playerToRobb.resources[resource] -= 1
+            player.resources[resource] += 1
+        if not fromDice:
+            player.army_size += 1
+            biggest_army = max([gamePlayer.army_size for gamePlayer in self.players])
+            if player.army_size >= 3:
+                if player.army_size > biggest_army:
+                    for gamePlayer in self.players:
+                        gamePlayer.biggest_army = False
+                    player.biggest_army = True
+    
+    def seven_happend(self):
+        pass
+        
+    def get_players_on_tile(self, tile: Tile):
+        players_id: list[int] = []
+        for point in tile.points:
+            for construction in point.constructions:
+                if construction.type_of in [CITY, VILLAGE]:
+                    if not construction.player_id in players_id:
+                        players_id.append(players_id)
+        return [self.players[player_id] for player_id in players_id]
+        
 
 def main():
     b = Board()

@@ -1,4 +1,4 @@
-from Board import LUMBER, BRICK, ORE, WOOL, GRAIN, VILLAGE, CITY, ROAD, DEV_CARD, THREE_TO_ONE
+from Board import LUMBER, BRICK, ORE, WOOL, GRAIN, VILLAGE, CITY, ROAD, DEV_CARD, THREE_TO_ONE, VICTORY_POINT
 from Construction import Constrution, Dev_card
 from Point import Point
 class Player():
@@ -11,7 +11,8 @@ class Player():
         self.init_resources()
         self.longest_road_size = 0
         self.army_size = 0
-        self.game_point = 0
+        self.biggest_army = False
+        self.longest_road = False
         self.valid_village_postions: list['Point'] = []
         self.valid_roads_positions: list[set['Point']] = []
         self.dev_card_allowed = True
@@ -101,6 +102,31 @@ class Player():
             self.resources[resource] -= give[resource]
         for resource in take.keys():
             self.resources[resource] += take[resource]
+        return True
+    
+    def get_num_of_resources(self):
+        return sum([value for value in self.resources.keys() if ])
+    
+    def trade_with_bank(self, resource_to_get: int, payment: int):
+        change_rate = 4
+        if self.ports[THREE_TO_ONE]:
+            change_rate = 3
+        if self.ports[resource_to_get]:
+            change_rate = 2
+        if self.resources[payment] < change_rate:
+            return False
+        self.resources[payment] -= change_rate
+        self.resources[resource_to_get] += 1
+        return True
+    
+    def get_visible_points(self):
+        return (5-self.constructions_counter[VILLAGE]) +\
+        2*(4-self.constructions_counter[CITY]) +\
+        2 if self.biggest_army else 0 +\
+        2 if self.longest_road else 0
+    
+    def get_real_points(self):
+        return self.get_real_points() + len([card for card in self.constructions[DEV_CARD] if card.action == VICTORY_POINT])
         
 def points_to_coords(points: list['Point']):
     return [[point.row, point.column] for point in points]    

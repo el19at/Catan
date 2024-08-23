@@ -34,6 +34,7 @@ class Dev_card(Constrution):
         super().__init__(DEV_CARD, -1)
         self.action = action
         self.is_allowed = False
+        self.used = False
     
     def allow_use(self):
         self.is_allowed = True
