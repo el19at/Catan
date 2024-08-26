@@ -1,34 +1,41 @@
 import socket
 import threading
+from Board import Board
+from sys import argv
 
 def handle_client(client_socket):
     client_socket.sendall(b'hello')
     client_socket.close()
 
-def main():
-    # Define the server address and port
-    server_address = ('0.0.0.0', 50000)
-    
-    # Create a TCP socket
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    
-    # Bind the socket to the address and port
-    server.bind(server_address)
-    
-    # Listen for incoming connections (max 3 connections in the queue)
-    server.listen(3)
-    print('Server is listening on {}:{}'.format(*server_address))
+def update_player(client_socket: socket, board: Board):
+    json_board = board.board_to_json()
+    client_socket.sendall(json_board.encode('utf-8'))
 
-    # Wait for 3 clients to connect
+def accept_clients(players):
+    server_address = ('0.0.0.0', 50000)
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.bind(server_address)
+    server.listen(players)
+    print('Server is listening on {}:{}'.format(*server_address))
     clients = []
-    while len(clients) < 3:
+    while len(clients) < players:
         client_socket, client_address = server.accept()
         print('Accepted connection from {}:{}'.format(*client_address))
         clients.append(client_socket)
-    
-    # Send "hello" to all connected clients
+    print('all conncted!')
+    return clients
+
+def update_players(clients, board):
     for client in clients:
-        threading.Thread(target=handle_client, args=(client,)).start()
+        threading.Thread(target=update_player, args=(client,board,)).start()
+        
+def main():
+    # Define the server address and port
+    players = int(argv[1]) if len(argv) > 1 else 3    
+    clients = accept_clients(players)
+    board = Board()
+    update_players(clients, board)
+    
 
 if __name__ == '__main__':
     main()
