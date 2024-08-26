@@ -12,10 +12,9 @@ class Game():
     def __init__(self, num_of_players: int = 3, point_limit: int = 10):
         pygame.init()
         self.board: Board = Board()
-        print(self.board.points.keys())
         self.tile_centers = {}
         self.intersections = {}
-        self.main_screen = pygame.display.set_mode((800, 600))
+        self.main_screen = pygame.display.set_mode((1000, 550))
         self.main_screen.fill(pygame.Color('white'))
         self.tile_size = 50
         self.draw_tiles(0, 0, self.tile_size)
@@ -38,13 +37,9 @@ class Game():
             x = center[0] + edge_length * math.cos(angle)
             y = center[1] + edge_length * math.sin(angle)
             x, y = round(x), round(y)
-            close_to_other = False
-            if edge_length == self.tile_size:
-                for pos in self.intersections.keys():
-                    if distance(pos, (x,y)) < self.tile_size/10:
-                        close_to_other = True
-                if not close_to_other:                    
-                    self.intersections[(x, y)] = self.coord_from_hex_point((x, y), i)
+            intersectionToAdd = self.get_tile_by_click(center).points[(i+2)%6]
+            if not intersectionToAdd in self.intersections.values():
+                self.intersections[(x, y)] = intersectionToAdd
             points.append((x, y))
         pygame.draw.polygon(self.main_screen, color, points)
         
@@ -108,11 +103,11 @@ class Game():
     def handle_click(self, pos):
         tile_pos = self.get_tile_pos_by_click(pos)
         intersection = self.get_intersection_by_click(pos)
-        print(tile_pos)
-        """
+        if tile_pos[0]>=0:
+            print(tile_pos)
         if intersection:
             print(f'{intersection.row}, {intersection.column}')
-        """
+        
     def get_tile_pos_by_click(self, pos):
         c = self.tile_size
         for screen_pos, array_pos in self.tile_centers.items():
