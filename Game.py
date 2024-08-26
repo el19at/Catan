@@ -98,7 +98,7 @@ class Game():
                 if DEBUG:
                     self.draw_hexagon(COLORS[tile.resurce], center_round, c-2, 0, f'{center_round}')
                 else:
-                    self.draw_hexagon(COLORS[tile.resurce], center_round, c-2, tile.number, "")
+                    self.draw_hexagon(COLORS[tile.resource], center_round, c-2, tile.number, "")
     
     def handle_click(self, pos):
         tile_pos = self.get_tile_pos_by_click(pos)
@@ -147,6 +147,7 @@ def distance(pos1, pos2):
 
 def main():
     game = Game()
+    print(game.board.board_to_json())
     game.start()
     
 if __name__ == '__main__':

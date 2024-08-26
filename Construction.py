@@ -27,7 +27,20 @@ class Constrution():
         if self.type_of == DEV_CARD:
             return {ORE:1, WOOL:1, GRAIN:1}
     
+    def to_dict(self):
+        return {
+            'type_of': self.type_of,
+            'player_id': self.player_id,
+            'coord': self.coord,
+            'price': self.price
+        }
 
+    @classmethod
+    def from_dict(cls, data):
+        obj = cls(data['type_of'], data['player_id'])
+        obj.coord = data['coord']
+        obj.price = data['price']
+        return obj
 class Dev_card(Constrution):
     def __init__(self, action: int) -> None:
         super().__init__(DEV_CARD, -1)
@@ -40,3 +53,17 @@ class Dev_card(Constrution):
     
     def set_used(self):
         self.used = True
+
+    def to_dict(self):
+        return {
+            **super().to_dict(),
+            'action': self.action,
+            'is_allowed': self.is_allowed,
+            'used': self.used
+        }
+    @classmethod
+    def from_dict(cls, data):
+        obj = cls(data['action'])
+        obj.is_allowed = data['is_allowed']
+        obj.used = data['used']
+        return obj

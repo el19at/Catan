@@ -1,3 +1,4 @@
+import json
 from Tile import Tile
 from Point import Point
 from Player import Player, points_to_coords
@@ -39,7 +40,7 @@ class Board:
             self.players[WHITE] = Player(WHITE)
         for row in self.tiles:
             for tile in row:
-                if tile.resurce != SEA:
+                if tile.resource != SEA:
                     self.set_valid_village_postions(tile)
         self.dev_cards = [Dev_card(KNIGHT) for _ in range(14)] \
         +[Dev_card(VICTORY_POINT) for _ in range(5)] \
@@ -75,7 +76,7 @@ class Board:
             for tile in row:
                 if tile.number == 0:
                     zero = tile
-                if tile.resurce == DESERT:
+                if tile.resource == DESERT:
                     desert = tile
                 if desert != None and zero != None:
                     break
@@ -143,8 +144,8 @@ class Board:
                     playerGame.valid_village_postions.remove(neib_point)
         if isSecond:
             for tile in tiles:
-                if not tile.resurce in [DESERT, SEA]:
-                    player.resources[tile.resurce] += 1
+                if not tile.resource in [DESERT, SEA]:
+                    player.resources[tile.resource] += 1
         return True
     
     def update_valid_road_positions(self, player:Player, point: Point):
@@ -209,7 +210,7 @@ class Board:
         self.turn = RED + ((self.turn+1) % self.num_of_players) 
        
     def is_sea_point(self, point: Point):
-        return all(x == SEA for x in [tile.resurce for tile in self.get_tiles_of_point(point)])
+        return all(x == SEA for x in [tile.resource for tile in self.get_tiles_of_point(point)])
     
     def get_construction_position(self, player: Player, type_of: int):
         return [construction.coord for construction in player.constructions[type_of]]
@@ -227,7 +228,7 @@ class Board:
         for row in self.tiles:
             res += (5-len(row)) * '    '
             for tile in row:
-                res += f'({num_to_rec[tile.resurce]}, {tile.number})'
+                res += f'({num_to_rec[tile.resource]}, {tile.number})'
             res += '\n'
         return res
     
@@ -285,4 +286,33 @@ class Board:
     
     def win(self):
         return max([player.get_real_points() for player in self.players.values()]) > self.point_limit
+    
+    def to_dict(self):
+        return {
+            'turn': self.turn,
+            'point_limit': self.point_limit,
+            'tiles': [[tile.to_dict() for tile in row] for row in self.tiles],
+            'robbed_tile': self.robbed_tile.to_dict() if self.robbed_tile else None,
+            'points': {str(k): v.to_dict() for k, v in self.points.items()},
+            'num_of_players': self.num_of_players,
+            'players': {k: v.to_dict() for k, v in self.players.items()},
+            'dev_cards': [dev_card.to_dict() for dev_card in self.dev_cards]
+        }
+    def board_to_json(self) -> str:
+        return json.dumps(self.to_dict(), indent=4)
+    
+    @classmethod
+    def from_dict(cls, data):
+        board = cls(data['num_of_players'], data['point_limit'])
+        board.turn = data['turn']
+        board.tiles = [[Tile.from_dict(tile) for tile in row] for row in data['tiles']]
+        board.robbed_tile = Tile.from_dict(data['robbed_tile']) if data['robbed_tile'] else None
+        board.points = {int(k): Point.from_dict(v) for k, v in data['points'].items()}
+        board.players = {int(k): Player.from_dict(v) for k, v in data['players'].items()}
+        board.dev_cards = [Dev_card.from_dict(card) for card in data['dev_cards']]
+        return board
+
+def json_to_board(json_string: str) -> Board:
+    data = json.loads(json_string)
+    return Board.from_dict(data)
     

@@ -157,5 +157,37 @@ class Player():
                 res.append(playerRoad)
         return res
     
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'constructions': {k: [c.to_dict() for c in v] for k, v in self.constructions.items()},
+            'constructions_counter': self.constructions_counter,
+            'resources': self.resources,
+            'longest_road_size': self.longest_road_size,
+            'army_size': self.army_size,
+            'biggest_army': self.biggest_army,
+            'longest_road': self.longest_road,
+            'valid_village_postions': [point.to_dict() for point in self.valid_village_postions],
+            'valid_roads_positions': [list(pos) for pos in self.valid_roads_positions],
+            'dev_card_allowed': self.dev_card_allowed,
+            'ports': self.ports
+        }
+    
+    @classmethod
+    def from_dict(cls, data):
+        obj = cls(data['id'])
+        obj.constructions = {int(k): [Construction.from_dict(c) for c in v] for k, v in data['constructions'].items()}
+        obj.constructions_counter = data['constructions_counter']
+        obj.resources = data['resources']
+        obj.longest_road_size = data['longest_road_size']
+        obj.army_size = data['army_size']
+        obj.biggest_army = data['biggest_army']
+        obj.longest_road = data['longest_road']
+        obj.valid_village_postions = [Point.from_dict(p) for p in data['valid_village_postions']]
+        obj.valid_roads_positions = [set(Point.from_dict(pos) for pos in s) for s in data['valid_roads_positions']]
+        obj.dev_card_allowed = data['dev_card_allowed']
+        obj.ports = data['ports']
+        return obj
+    
 def points_to_coords(points: list['Point']):
     return [[point.row, point.column] for point in points]    

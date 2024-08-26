@@ -1,3 +1,4 @@
+import Construction
 from Construction import Constrution, VILLAGE, CITY
 class Point():
     def __init__(self, row: int, column: int) -> None:
@@ -19,3 +20,16 @@ class Point():
             if constrution.type_of in [VILLAGE, CITY]:
                 return constrution
         return None
+    
+    def to_dict(self):
+        return {
+            'row': self.row,
+            'column': self.column,
+            'constructions': [c.to_dict() for c in self.constructions]
+        }
+    
+    @classmethod
+    def from_dict(cls, data):
+        obj = cls(data['row'], data['column'])
+        obj.constructions = [Construction.from_dict(c) for c in data['constructions']]
+        return obj
