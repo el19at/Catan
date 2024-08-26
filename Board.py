@@ -34,18 +34,17 @@ class Board:
         self.init_points()
         self.set_tiles_points()
         self.num_of_players = num_of_players
-        self.players: dict[int:Player] = {RED: Player(), BLUE:Player(), ORANGE: Player()}
+        self.players: dict[int:Player] = {RED: Player(RED), BLUE:Player(BLUE), ORANGE: Player(ORANGE)}
         if num_of_players == 4:
-            self.players[WHITE] = Player()
+            self.players[WHITE] = Player(WHITE)
         for row in self.tiles:
             for tile in row:
                 if tile.resurce != SEA:
                     self.set_valid_village_postions(tile)
-                    self.set_valid_road_positions(tile)
-        self.dev_cards = [Dev_card(DEV_CARD, KNIGHT) for _ in range(14)]
-        +[Dev_card(VICTORY_POINT) for _ in range(5)]
-        +[Dev_card(ROADS_BUILD) for _ in range(2)]
-        +[Dev_card(YEAR_OF_PLENTY) for _ in range(2)]
+        self.dev_cards = [Dev_card(KNIGHT) for _ in range(14)] \
+        +[Dev_card(VICTORY_POINT) for _ in range(5)] \
+        +[Dev_card(ROADS_BUILD) for _ in range(2)] \
+        +[Dev_card(YEAR_OF_PLENTY) for _ in range(2)] \
         +[Dev_card(MONOPOLY) for _ in range(2)]
         random.shuffle(self.dev_cards)
                     
@@ -97,7 +96,7 @@ class Board:
                 row.insert(0, Tile(SEA, 0))
                 row.append(Tile(SEA, 0))
             if len(row) < size:
-                row.append(Tile(SEA, 0))
+                row.insert(0, Tile(SEA, 0))
                 
     def init_points(self):
         for i in range(self.ROWS):
