@@ -1,4 +1,5 @@
-from Board import LUMBER, BRICK, ORE, WOOL, GRAIN, VILLAGE, CITY, ROAD, DEV_CARD, THREE_TO_ONE, VICTORY_POINT
+from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, VILLAGE,\
+                    CITY, ROAD, DEV_CARD, VICTORY_POINT, THREE_TO_ONE
 from Construction import Constrution, Dev_card
 from Point import Point
 class Player():
@@ -105,7 +106,7 @@ class Player():
         return True
     
     def get_num_of_resources(self):
-        return sum([value for value in self.resources.keys() if ])
+        return sum([self.resources[key] for key in [LUMBER, BRICK, ORE, WOOL, GRAIN]])
     
     def trade_with_bank(self, resource_to_get: int, payment: int):
         change_rate = 4
@@ -127,6 +128,34 @@ class Player():
     
     def get_real_points(self):
         return self.get_real_points() + len([card for card in self.constructions[DEV_CARD] if card.action == VICTORY_POINT])
-        
+    
+    def drop_resource(self, resource: int):
+        if self.resources[resource] > 0:
+            self.resources[resource] -= 1
+    
+    def longest_path(self):
+        roads: list[Constrution] = []
+        for i in range(2):
+            for construction in self.constructions[ROAD]:
+                if self.constructions[VILLAGE][-1-i].coord in construction.coord:
+                    roads[0] = construction
+                    break
+        return max(self.longest_path_rec(roads[0]), self.longest_path_rec(roads[1]))
+    
+    def longest_path_rec(self, road: Constrution):
+        roads = self.find_roads(road)
+        if len(roads) == 0:
+            return 1
+        return 1 + max([self.longest_path_rec(playerRoad) for playerRoad in roads])
+    
+    def find_roads(self, road: Constrution):
+        res = []
+        for playerRoad in self.constructions[ROAD]:
+            if road == playerRoad:
+                continue
+            if road.coord[0] in playerRoad.coord or road.coord[1] in playerRoad.coord:
+                res.append(playerRoad)
+        return res
+    
 def points_to_coords(points: list['Point']):
     return [[point.row, point.column] for point in points]    

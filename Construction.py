@@ -1,5 +1,4 @@
-from Board import LUMBER, BRICK, ORE, WOOL, GRAIN, VILLAGE, CITY, ROAD, DEV_CARD
-from Player import Player
+from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, VILLAGE, CITY, ROAD, DEV_CARD
 
 class Constrution():
     def __init__(self, type_of: int, player_id: int) -> None:
@@ -38,3 +37,6 @@ class Dev_card(Constrution):
     
     def allow_use(self):
         self.is_allowed = True
+    
+    def set_used(self):
+        self.used = True

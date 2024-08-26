@@ -3,34 +3,19 @@ from Point import Point
 from Player import Player, points_to_coords
 from Construction import Constrution, Dev_card
 import random
-DESERT = 0
-SEA = 1
-LUMBER = 2
-BRICK = 3
-ORE = 4
-WOOL = 5
-GRAIN = 6
-VILLAGE = 7
-CITY = 8
-ROAD = 9
-DEV_CARD = 10
-RED = 11
-BLUE = 12
-ORANGE = 13
-WHITE = 14
-KNIGHT = 15
-VICTORY_POINT = 16
-MONOPOLY = 17
-ROADS_BUILD = 18
-YEAR_OF_PLENTY = 19
-THREE_TO_ONE = 20
+from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, \
+                    VILLAGE, CITY, ROAD, DEV_CARD, DESERT, WHITE, RED, \
+                    BLUE, ORANGE, KNIGHT, VICTORY_POINT, YEAR_OF_PLENTY,\
+                    MONOPOLY, ROADS_BUILD, SEA
+
 
 TILES_NUMBERS = 2*[i for i in range(3, 7)] + 2*[i for i in range(8, 12)] + [2, 12, 0]
 TILES_RESOURCES = [DESERT] + 4*[WOOL, GRAIN, LUMBER] + 3*[BRICK, ORE]
 #from Game import TILES_NUMBERS, TILES_RESOURCES, DESERT, SEA, LUMBER, BRICK, ORE, WOOL, GRAIN
 class Board:
-    def __init__(self, num_of_players: int = 3):
+    def __init__(self, num_of_players: int = 3, point_limit: int = 10):
         self.turn = -1
+        self.point_limit = point_limit
         numbers = TILES_NUMBERS.copy()
         resources = TILES_RESOURCES.copy()
         random.shuffle(numbers)
@@ -190,6 +175,11 @@ class Board:
                 gamePlayer.valid_roads_positions.remove(set(point1, point2))
         for point in [point1, point2]:
             self.update_valid_road_positions(player, point)
+        longest_path = max([gamePlayer.longest_path() for gamePlayer in self.other_payers(player)])
+        if longest_path < player.longest_path():
+            for gamePlayer in self.other_payers(player):
+                gamePlayer.longest_road = False
+            player.longest_path = True
         return True
     
     def place_city(self, player:Player, point: Point):
@@ -247,6 +237,7 @@ class Board:
             return False
         if not (player.dev_card_allowed and card.allow_use and not card.used):
             return False
+        card.set_used()
         return True
     
     def use_year_of_plenty(self, player: Player, first_resource: int, second_resource: int):
@@ -281,9 +272,6 @@ class Board:
                         gamePlayer.biggest_army = False
                     player.biggest_army = True
     
-    def seven_happend(self):
-        pass
-        
     def get_players_on_tile(self, tile: Tile):
         players_id: list[int] = []
         for point in tile.points:
@@ -293,11 +281,9 @@ class Board:
                         players_id.append(players_id)
         return [self.players[player_id] for player_id in players_id]
         
-
-def main():
-    b = Board()
-    print(b.to_string())
-
-if __name__ == '__main__':
-    main()
-    #print(b.to_string())
+    def other_payers(self, player: Player):
+        return [gamePlayer for gamePlayer in self.players.values() if gamePlayer != player]
+    
+    def win(self):
+        return max([player.get_real_points() for player in self.players.values()]) > self.point_limit
+    
