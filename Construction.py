@@ -1,6 +1,6 @@
 from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, VILLAGE, CITY, ROAD, DEV_CARD
 
-class Constrution():
+class Construction():
     def __init__(self, type_of: int, player_id: int) -> None:
         self.type_of: int = type_of
         self.player_id = player_id
@@ -41,7 +41,7 @@ class Constrution():
         obj.coord = data['coord']
         obj.price = data['price']
         return obj
-class Dev_card(Constrution):
+class Dev_card(Construction):
     def __init__(self, action: int) -> None:
         super().__init__(DEV_CARD, -1)
         self.action = action

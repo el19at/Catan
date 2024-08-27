@@ -2,7 +2,7 @@ import json
 from Tile import Tile
 from Point import Point
 from Player import Player, points_to_coords
-from Construction import Constrution, Dev_card
+from Construction import Construction, Dev_card
 import random
 from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, \
                     VILLAGE, CITY, ROAD, DEV_CARD, DESERT, WHITE, RED, \
@@ -125,7 +125,7 @@ class Board:
         return [random.randint(1, 6), random.randint(1,6)]
     
     def place_village(self, player: Player, point: Point, isFirst: bool = False, isSecond: bool = False):
-        village: Constrution = None
+        village: Construction = None
         if isFirst or isSecond:
             village = player.constructions[VILLAGE][-1 if isFirst else -2]
         else:
@@ -160,7 +160,7 @@ class Board:
                     player.valid_roads_positions.append((point, neib_points))
                 
     def place_road(self, player: Player, point1: Point, point2: Point, freeRoad: bool):
-        road: Constrution = None
+        road: Construction = None
         if freeRoad:
             for playerRoad in player.constructions[ROAD]:
                 if not playerRoad.is_placed():
@@ -307,12 +307,13 @@ class Board:
         board.turn = data['turn']
         board.tiles = [[Tile.from_dict(tile) for tile in row] for row in data['tiles']]
         board.robbed_tile = Tile.from_dict(data['robbed_tile']) if data['robbed_tile'] else None
-        board.points = {int(k): Point.from_dict(v) for k, v in data['points'].items()}
+        board.points = {tuple(map(int, k.strip('()').split(', '))): Point.from_dict(v) for k, v in data['points'].items()}
         board.players = {int(k): Player.from_dict(v) for k, v in data['players'].items()}
         board.dev_cards = [Dev_card.from_dict(card) for card in data['dev_cards']]
         return board
 
-def json_to_board(json_string: str) -> Board:
-    data = json.loads(json_string)
+def json_to_board(data):
+    if isinstance(data, str):
+        data = json.loads(data)
     return Board.from_dict(data)
     

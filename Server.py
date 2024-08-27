@@ -1,6 +1,7 @@
 import socket
 import threading
 from Board import Board
+from Game import Game
 from sys import argv
 
 def handle_client(client_socket):
@@ -33,8 +34,9 @@ def main():
     # Define the server address and port
     players = int(argv[1]) if len(argv) > 1 else 3    
     clients = accept_clients(players)
-    board = Board()
-    update_players(clients, board)
+    game = Game()
+    game.start()
+    update_players(clients, game.board)
     
 
 if __name__ == '__main__':

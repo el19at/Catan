@@ -1,11 +1,11 @@
 from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, VILLAGE,\
                     CITY, ROAD, DEV_CARD, VICTORY_POINT, THREE_TO_ONE
-from Construction import Constrution, Dev_card
+from Construction import Construction, Dev_card
 from Point import Point
 class Player():
     def __init__(self, id) -> None:
         self.id = id
-        self.constructions: dict[int:list['Constrution']] = {}
+        self.constructions: dict[int:list['Construction']] = {}
         self.constructions_counter: dict[int:int]= {}
         self.resources: dict[int:int] = {}
         self.init_constructions()
@@ -20,16 +20,16 @@ class Player():
         self.ports = {LUMBER:False, BRICK:False, ORE:False, WOOL:False, GRAIN:False, THREE_TO_ONE:False}
     
     def init_constructions(self):
-        self.constructions[ROAD] = [Constrution(ROAD, self.id) for _ in range(15)]
-        self.constructions[VILLAGE] = [Constrution(VILLAGE, self.id) for _ in range(5)]
-        self.constructions[CITY] = [Constrution(CITY, self.id) for _ in range(4)]
+        self.constructions[ROAD] = [Construction(ROAD, self.id) for _ in range(15)]
+        self.constructions[VILLAGE] = [Construction(VILLAGE, self.id) for _ in range(5)]
+        self.constructions[CITY] = [Construction(CITY, self.id) for _ in range(4)]
         self.constructions[DEV_CARD] = []
         self.constructions_counter = {ROAD:15, VILLAGE:5, CITY:4, DEV_CARD:0}
     
     def init_resources(self):
         self.resources = {LUMBER:0, BRICK:0, ORE:0, WOOL:0, GRAIN:0}
     
-    def buy(self, constType:int) -> Constrution | None:
+    def buy(self, constType:int) -> Construction | None:
         if self.constructions_counter[constType] < 1:
             return None
         price = self.constructions[constType][0].price
@@ -43,7 +43,7 @@ class Player():
                 return construction
         return None
     
-    def place_village(self, village: Constrution, point: Point, isFirst: bool = False, isSecond: bool = False):
+    def place_village(self, village: Construction, point: Point, isFirst: bool = False, isSecond: bool = False):
         if not point in self.valid_village_postions:
             return False
         if not(isFirst or isSecond):
@@ -55,19 +55,19 @@ class Player():
                 return False
         self.place_construction(village, point)
     
-    def place_construction(self, construction: Constrution, points: list['Point']):
+    def place_construction(self, construction: Construction, points: list['Point']):
         for point in points:
             point.build_on_point(construction)
         construction.place(points_to_coords(points))
         self.constructions_counter[construction.type_of] -= 1
      
-    def place_road(self, road: Constrution, point1: Point, point2: Point):
+    def place_road(self, road: Construction, point1: Point, point2: Point):
         if not set(point1, point2) in self.valid_roads_positions:
             return False
         self.place_construction(road, [point1, point2])
         return True
     
-    def place_city(self, city: Constrution, point:Point):
+    def place_city(self, city: Construction, point:Point):
         village_to_replace = None
         for village in self.constructions[VILLAGE]:
             if village.coord == points_to_coords([point]):
@@ -134,7 +134,7 @@ class Player():
             self.resources[resource] -= 1
     
     def longest_path(self):
-        roads: list[Constrution] = []
+        roads: list[Construction] = []
         for i in range(2):
             for construction in self.constructions[ROAD]:
                 if self.constructions[VILLAGE][-1-i].coord in construction.coord:
@@ -142,13 +142,13 @@ class Player():
                     break
         return max(self.longest_path_rec(roads[0]), self.longest_path_rec(roads[1]))
     
-    def longest_path_rec(self, road: Constrution):
+    def longest_path_rec(self, road: Construction):
         roads = self.find_roads(road)
         if len(roads) == 0:
             return 1
         return 1 + max([self.longest_path_rec(playerRoad) for playerRoad in roads])
     
-    def find_roads(self, road: Constrution):
+    def find_roads(self, road: Construction):
         res = []
         for playerRoad in self.constructions[ROAD]:
             if road == playerRoad:

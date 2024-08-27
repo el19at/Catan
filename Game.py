@@ -1,5 +1,5 @@
 import pygame
-from Board import Board, Point
+from Board import Board, Point, json_to_board
 import math
 from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, \
                     VILLAGE, CITY, ROAD, DEV_CARD, DESERT, WHITE, RED, \
@@ -9,9 +9,13 @@ from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, \
 COLORS = {SEA: pygame.Color('aqua'), GRAIN: pygame.Color('gold2'), BRICK: pygame.Color('brown1'), WOOL: pygame.Color('chartreuse'), LUMBER:pygame.Color('darkgreen'), ORE:pygame.Color('grey63'), DESERT:pygame.Color('lemonchiffon1')}
 DEBUG = False
 class Game():
-    def __init__(self, num_of_players: int = 3, point_limit: int = 10):
+    def __init__(self, num_of_players: int = 3, point_limit: int = 10, json: str=""):
         pygame.init()
-        self.board: Board = Board()
+        self.board = None
+        if json != "":
+            self.board = json_to_board(json)
+        else:
+            self.board = Board(num_of_players, point_limit)
         self.tile_centers = {}
         self.intersections = {}
         self.main_screen = pygame.display.set_mode((1000, 550))
@@ -37,7 +41,8 @@ class Game():
             x = center[0] + edge_length * math.cos(angle)
             y = center[1] + edge_length * math.sin(angle)
             x, y = round(x), round(y)
-            intersectionToAdd = self.get_tile_by_click(center).points[(i+2)%6]
+            n = len(self.get_tile_by_click(center).points)
+            intersectionToAdd = self.get_tile_by_click(center).points[(i+2)%n]
             if not intersectionToAdd in self.intersections.values():
                 self.intersections[(x, y)] = intersectionToAdd
             points.append((x, y))

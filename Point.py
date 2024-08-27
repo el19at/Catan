@@ -1,12 +1,12 @@
 import Construction
-from Construction import Constrution, VILLAGE, CITY
+from Construction import Construction, VILLAGE, CITY
 class Point():
     def __init__(self, row: int, column: int) -> None:
         self.row: int = row
         self.column: int = column
-        self.constructions: list['Constrution'] = []
+        self.constructions: list['Construction'] = []
         
-    def build_on_point(self, construction: Constrution):
+    def build_on_point(self, construction: Construction):
         self.construction.append(construction)
     
     def get_neib_points_coord(self):
@@ -15,10 +15,10 @@ class Point():
             return [[i-1, j], [i+i,j-1], [i+i, j+1]]
         return [[i-1, j-1], [i-1, j+1], [i+1, j]]
     
-    def get_collector(self) -> Constrution:
-        for constrution in self.constructions:
-            if constrution.type_of in [VILLAGE, CITY]:
-                return constrution
+    def get_collector(self) -> Construction:
+        for Construction in self.constructions:
+            if Construction.type_of in [VILLAGE, CITY]:
+                return Construction
         return None
     
     def to_dict(self):
