@@ -1,28 +1,38 @@
 import json
 from Game import Game
 import socket
+from Board import Board, json_to_board
+
+server_address = ('localhost', 50000)
 
 def start_client():
-    server_address = ('localhost', 50000)
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect(server_address)
+    return client
 
-    try:
-        # Buffer to hold the incoming data
-        buffer = ""
-        while True:
-            # Continuously receive data in chunks of 4096 bytes
-            data = client.recv(4096).decode('utf-8')
-            if not data:
-                break
-            buffer += data
-        json_data = json.loads(buffer)
-        game = Game(json=json_data)
-        game.start()
+def recive_board(client):
+    # Buffer to hold the incoming data
+    buffer = ""
+    while True:
+        # Continuously receive data in chunks of 4096 bytes
+        data = client.recv(4096).decode('utf-8')
+        if not data:
+            break
+        buffer += data
+    json_data = json.loads(buffer)
+    return json_to_board(json_data)
 
-    finally:
-        client.close()
+def recive_player_id(client):
+    data = client.recv(512).decode('utf-8')
+    return json.loads(data)['player_id']
 
+def roll_dice(client):
+    data = json.dumps({"roll_dice":True})
+    client.sendall(data.encode('utf-8'))
 if __name__ == "__main__":
-    start_client()
-
+    client = start_client()
+    player_id = recive_player_id(client)
+    print(f'playerid: {player_id}')
+    board = recive_board(client)
+    game = Game(board)
+    game.start()

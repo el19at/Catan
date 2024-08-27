@@ -9,19 +9,21 @@ from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, \
 COLORS = {SEA: pygame.Color('aqua'), GRAIN: pygame.Color('gold2'), BRICK: pygame.Color('brown1'), WOOL: pygame.Color('chartreuse'), LUMBER:pygame.Color('darkgreen'), ORE:pygame.Color('grey63'), DESERT:pygame.Color('lemonchiffon1')}
 DEBUG = False
 class Game():
-    def __init__(self, num_of_players: int = 3, point_limit: int = 10, json: str=""):
+    def __init__(self, num_of_players: int = 3, point_limit: int = 10, board: Board=None):
         pygame.init()
         self.board = None
-        if json != "":
-            self.board = json_to_board(json)
+        if  board:
+            self.board = board
         else:
             self.board = Board(num_of_players, point_limit)
         self.tile_centers = {}
         self.intersections = {}
-        self.main_screen = pygame.display.set_mode((1000, 550))
+        self.main_screen = pygame.display.set_mode((970, 550))
         self.main_screen.fill(pygame.Color('white'))
         self.tile_size = 50
         self.draw_tiles(0, 0, self.tile_size)
+        self.buttons = []
+        self.draw_dashboard(RED)
     
     def print_intersections(self):
         for key, value in self.intersections.items():
@@ -83,10 +85,10 @@ class Game():
             x, y = 2*i+1, 2*(j+1)+r
         return self.board.get_point(x, y)
     
-    def write_text(self, center, txt: str):
+    def write_text(self, center, txt: str, size: int=24):
         if not pygame.font.get_init():
             pygame.font.init()
-        font = pygame.font.SysFont(None, 24)
+        font = pygame.font.SysFont(None, size)
         text_surface = font.render(txt, True, pygame.Color('black'))
         text_rect = text_surface.get_rect()
         text_rect.center = center
@@ -110,9 +112,19 @@ class Game():
         intersection = self.get_intersection_by_click(pos)
         if tile_pos[0]>=0:
             print(tile_pos)
+            return
         if intersection:
             print(f'{intersection.row}, {intersection.column}')
-        
+            return
+        button_text = ""
+        for button in self.buttons:
+            if self.click_in_button(button, pos):
+                 button_text = button[3]
+                 break
+        if button_text == "":
+            return
+        print(button_text)
+            
     def get_tile_pos_by_click(self, pos):
         c = self.tile_size
         for screen_pos, array_pos in self.tile_centers.items():
@@ -131,7 +143,57 @@ class Game():
             if distance(pos, click) < self.tile_size//4:
                 return point
         return None
-                
+    
+    def update(self):
+        pass
+    
+    def draw_filled_rectangle(self, color, position, width, height):
+        rect = pygame.Rect(position[0], position[1], width, height)
+        pygame.draw.rect(self.main_screen, color, rect)
+    
+    def draw_rectangle(self, inner_color, border_color, position, width, height, border_size):
+        self.draw_filled_rectangle(border_color, position, width, height)
+        inner_position = (position[0]+border_size, position[1]+border_size)
+        self.draw_filled_rectangle(inner_color, inner_position, width-2*border_size, height-2*border_size)
+    
+    def draw_dashboard(self, player_id):
+        
+        self.draw_rectangle(pygame.Color('white'), pygame.Color('black'), (660, 10), 300, 530, 3)
+        
+        self.write_text((720,30), 'Resources')
+        self.draw_rectangle(pygame.Color('white'), pygame.Color('black'), (670, 37), 280, 40, 3)
+        i = 690
+        for res, amount in self.board.players[player_id].resources.items():
+            self.draw_circle(COLORS[res], (i, 57), 7)
+            self.write_text((i+15, 57), f'{amount}')
+            i+=50
+        self.write_text((700,95), 'Build')
+        self.draw_rectangle(pygame.Color('white'), pygame.Color('black'), (670, 102), 280, 40, 3)
+        self.add_button((680, 108), 60, 28, 'road')
+        self.add_button((745, 108), 60, 28, 'village')
+        self.add_button((810, 108), 60, 28, 'city')
+        self.add_button((875, 108), 60, 28, 'card')
+        
+        
+        
+        self.add_button((670, 490), 130, 40, 'roll dice')
+        self.add_button((820, 490), 130, 40, 'end turn')
+        
+    def draw_circle(self, color, position, radius):
+        pygame.draw.circle(self.main_screen, color, position, radius)
+    
+    def add_button(self, position, width, height, txt):
+        self.draw_rectangle(pygame.Color('white'), pygame.Color('black'), position, width, height, 3)
+        text_pos = (position[0]+width//2, position[1]+height//2)
+        self.write_text(text_pos, txt)
+        self.buttons.append((position, width, height, txt))
+    
+    def click_in_button(self, button, pos):
+        i_start, j_start = button[0]
+        i_end, j_end = i_start+button[1], j_start+button[2]
+        x, y = pos
+        return i_start <= x and x <= i_end and j_start <= y and y <= j_end
+    
     def start(self):
         # Update the display
         pygame.display.flip()
@@ -152,7 +214,6 @@ def distance(pos1, pos2):
 
 def main():
     game = Game()
-    print(game.board.board_to_json())
     game.start()
     
 if __name__ == '__main__':
