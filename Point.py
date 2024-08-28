@@ -1,6 +1,7 @@
 import Construction
 from Construction import Construction, VILLAGE, CITY
-class Point():
+from Dictable import Dictable
+class Point(Dictable):
     def __init__(self, row: int, column: int) -> None:
         self.row: int = row
         self.column: int = column

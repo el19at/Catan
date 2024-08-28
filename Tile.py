@@ -1,5 +1,6 @@
 from Point import Point
-class Tile():
+from Dictable import Dictable
+class Tile(Dictable):
     def __init__(self, resource, number):
         self.resource = resource
         self.number = number

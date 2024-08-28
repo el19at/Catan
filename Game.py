@@ -1,6 +1,8 @@
+import socket
 import pygame
 from Board import Board, Point, json_to_board
 import math
+import json
 from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, \
                     VILLAGE, CITY, ROAD, DEV_CARD, DESERT, WHITE, RED, \
                     BLUE, ORANGE, KNIGHT, VICTORY_POINT, YEAR_OF_PLENTY,\
@@ -9,13 +11,17 @@ from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, \
 COLORS = {SEA: pygame.Color('aqua'), GRAIN: pygame.Color('gold2'), BRICK: pygame.Color('brown1'), WOOL: pygame.Color('chartreuse'), LUMBER:pygame.Color('darkgreen'), ORE:pygame.Color('grey63'), DESERT:pygame.Color('lemonchiffon1')}
 DEBUG = False
 class Game():
-    def __init__(self, num_of_players: int = 3, point_limit: int = 10, board: Board=None):
+    def __init__(self, player_id,num_of_players: int = 3, point_limit: int = 10, board: Board=None, client:socket = None):
         pygame.init()
         self.board = None
         if  board:
             self.board = board
         else:
             self.board = Board(num_of_players, point_limit)
+        self.player_id = player_id
+        self.client: socket = None
+        if client:
+            self.client = client
         self.tile_centers = {}
         self.intersections = {}
         self.main_screen = pygame.display.set_mode((970, 550))
@@ -23,7 +29,8 @@ class Game():
         self.tile_size = 50
         self.draw_tiles(0, 0, self.tile_size)
         self.buttons = []
-        self.draw_dashboard(RED)
+        self.draw_dashboard()
+        self.build_village_mode = False
     
     def print_intersections(self):
         for key, value in self.intersections.items():
@@ -106,25 +113,7 @@ class Game():
                     self.draw_hexagon(COLORS[tile.resurce], center_round, c-2, 0, f'{center_round}')
                 else:
                     self.draw_hexagon(COLORS[tile.resource], center_round, c-2, tile.number, "")
-    
-    def handle_click(self, pos):
-        tile_pos = self.get_tile_pos_by_click(pos)
-        intersection = self.get_intersection_by_click(pos)
-        if tile_pos[0]>=0:
-            print(tile_pos)
-            return
-        if intersection:
-            print(f'{intersection.row}, {intersection.column}')
-            return
-        button_text = ""
-        for button in self.buttons:
-            if self.click_in_button(button, pos):
-                 button_text = button[3]
-                 break
-        if button_text == "":
-            return
-        print(button_text)
-            
+                    
     def get_tile_pos_by_click(self, pos):
         c = self.tile_size
         for screen_pos, array_pos in self.tile_centers.items():
@@ -144,9 +133,14 @@ class Game():
                 return point
         return None
     
-    def update(self):
-        pass
+    def intersection_gui_to_logical(self, intersection)->Point:
+        return self.intersections[intersection]
     
+    def intersection_logical_to_gui(self, point: Point):
+        for pos, logicalPoint in self.intersections.items():
+            if point == logicalPoint:
+                return pos
+            
     def draw_filled_rectangle(self, color, position, width, height):
         rect = pygame.Rect(position[0], position[1], width, height)
         pygame.draw.rect(self.main_screen, color, rect)
@@ -156,14 +150,14 @@ class Game():
         inner_position = (position[0]+border_size, position[1]+border_size)
         self.draw_filled_rectangle(inner_color, inner_position, width-2*border_size, height-2*border_size)
     
-    def draw_dashboard(self, player_id):
+    def draw_dashboard(self):
         
         self.draw_rectangle(pygame.Color('white'), pygame.Color('black'), (660, 10), 300, 530, 3)
         
         self.write_text((720,30), 'Resources')
         self.draw_rectangle(pygame.Color('white'), pygame.Color('black'), (670, 37), 280, 40, 3)
         i = 690
-        for res, amount in self.board.players[player_id].resources.items():
+        for res, amount in self.board.players[self.player_id].resources.items():
             self.draw_circle(COLORS[res], (i, 57), 7)
             self.write_text((i+15, 57), f'{amount}')
             i+=50
@@ -173,8 +167,6 @@ class Game():
         self.add_button((745, 108), 60, 28, 'village')
         self.add_button((810, 108), 60, 28, 'city')
         self.add_button((875, 108), 60, 28, 'card')
-        
-        
         
         self.add_button((670, 490), 130, 40, 'roll dice')
         self.add_button((820, 490), 130, 40, 'end turn')
@@ -194,6 +186,44 @@ class Game():
         x, y = pos
         return i_start <= x and x <= i_end and j_start <= y and y <= j_end
     
+    def draw_valid_village_positions(self):
+        for point in self.board.players[self.player_id].valid_village_postions:
+            self.draw_circle(pygame.Color('green') if self.build_village_mode else pygame.Color('white'), self.intersection_logical_to_gui(point), 5)
+    
+    def button_clicked(self, button_text):
+        if button_text == 'roll dice':
+            self.send_action(button_text)
+        elif button_text == 'end turn':
+            self.send_action(button_text)
+        elif button_text == 'village':
+            self.build_village_mode = not self.build_village_mode
+        self.update()
+
+    def handle_click(self, pos):
+        tile_pos = self.get_tile_pos_by_click(pos)
+        intersection = self.get_intersection_by_click(pos)
+        if tile_pos[0]>=0:
+            print(tile_pos)
+            return
+        if intersection and self.build_village_mode:
+            self.send_action('build village', [intersection])
+            return
+        button_text = ""
+        for button in self.buttons:
+            if self.click_in_button(button, pos):
+                 button_text = button[3]
+                 break
+        if button_text == "":
+            return
+        self.button_clicked(button_text)
+        print(button_text)
+
+
+    def update(self):
+        self.draw_dashboard()
+        self.draw_valid_village_positions()
+        pygame.display.flip()
+
     def start(self):
         # Update the display
         pygame.display.flip()
@@ -209,11 +239,18 @@ class Game():
 
         pygame.quit()    
 
+    def send_action(self, action: str, arguments:list = []):
+        data = json.dumps({'action': action, 'arguments': [argument.do_dict() for argument in arguments]})
+        print(data)
+        if self.client:
+            self.client.sendall(data)
+
+    
 def distance(pos1, pos2):
     return ((pos1[0]-pos2[0])**2+(pos1[1]-pos2[1])**2)**0.5
 
 def main():
-    game = Game()
+    game = Game(player_id=RED)
     game.start()
     
 if __name__ == '__main__':

@@ -1,4 +1,5 @@
 import json
+from Dictable import Dictable
 from Tile import Tile
 from Point import Point
 from Player import Player, points_to_coords
@@ -13,7 +14,7 @@ from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, \
 TILES_NUMBERS = 2*[i for i in range(3, 7)] + 2*[i for i in range(8, 12)] + [2, 12, 0]
 TILES_RESOURCES = [DESERT] + 4*[WOOL, GRAIN, LUMBER] + 3*[BRICK, ORE]
 #from Game import TILES_NUMBERS, TILES_RESOURCES, DESERT, SEA, LUMBER, BRICK, ORE, WOOL, GRAIN
-class Board:
+class Board(Dictable):
     def __init__(self, num_of_players: int = 3, point_limit: int = 10):
         self.turn = -1
         self.point_limit = point_limit

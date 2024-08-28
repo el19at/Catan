@@ -2,7 +2,8 @@ from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, VILLAGE,\
                     CITY, ROAD, DEV_CARD, VICTORY_POINT, THREE_TO_ONE
 from Construction import Construction, Dev_card
 from Point import Point
-class Player():
+from Dictable import Dictable
+class Player(Dictable):
     def __init__(self, id) -> None:
         self.id = id
         self.constructions: dict[int:list['Construction']] = {}

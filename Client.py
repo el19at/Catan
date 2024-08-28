@@ -26,13 +26,10 @@ def recive_player_id(client):
     data = client.recv(512).decode('utf-8')
     return json.loads(data)['player_id']
 
-def roll_dice(client):
-    data = json.dumps({"roll_dice":True})
-    client.sendall(data.encode('utf-8'))
 if __name__ == "__main__":
     client = start_client()
     player_id = recive_player_id(client)
     print(f'playerid: {player_id}')
     board = recive_board(client)
-    game = Game(board)
+    game = Game(board, client=client, player_id=player_id)
     game.start()

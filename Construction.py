@@ -1,6 +1,7 @@
 from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, VILLAGE, CITY, ROAD, DEV_CARD
+from Dictable import Dictable
 
-class Construction():
+class Construction(Dictable):
     def __init__(self, type_of: int, player_id: int) -> None:
         self.type_of: int = type_of
         self.player_id = player_id
