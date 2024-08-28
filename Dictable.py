@@ -5,7 +5,7 @@ class Dictable(ABC):
     def to_dict(self):
         pass
     
-    @abstractmethod
     @classmethod
+    @abstractmethod
     def from_dict(cls, data):
         pass

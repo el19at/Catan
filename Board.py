@@ -8,11 +8,8 @@ import random
 from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, \
                     VILLAGE, CITY, ROAD, DEV_CARD, DESERT, WHITE, RED, \
                     BLUE, ORANGE, KNIGHT, VICTORY_POINT, YEAR_OF_PLENTY,\
-                    MONOPOLY, ROADS_BUILD, SEA
+                    MONOPOLY, ROADS_BUILD, SEA, TILES_NUMBERS, TILES_RESOURCES
 
-
-TILES_NUMBERS = 2*[i for i in range(3, 7)] + 2*[i for i in range(8, 12)] + [2, 12, 0]
-TILES_RESOURCES = [DESERT] + 4*[WOOL, GRAIN, LUMBER] + 3*[BRICK, ORE]
 #from Game import TILES_NUMBERS, TILES_RESOURCES, DESERT, SEA, LUMBER, BRICK, ORE, WOOL, GRAIN
 class Board(Dictable):
     def __init__(self, num_of_players: int = 3, point_limit: int = 10):
@@ -20,6 +17,8 @@ class Board(Dictable):
         self.point_limit = point_limit
         numbers = TILES_NUMBERS.copy()
         resources = TILES_RESOURCES.copy()
+        self.village_locations: list[Point] = []
+        self.road_locations: list[set[Point]] = []
         random.shuffle(numbers)
         random.shuffle(resources)
         self.tiles:list[list['Tile']] = [[Tile(resources[0], numbers[0])]]
@@ -43,6 +42,7 @@ class Board(Dictable):
             for tile in row:
                 if tile.resource != SEA:
                     self.set_valid_village_postions(tile)
+                    self.set_valid_road_positions(tile)
         self.dev_cards = [Dev_card(KNIGHT) for _ in range(14)] \
         +[Dev_card(VICTORY_POINT) for _ in range(5)] \
         +[Dev_card(ROADS_BUILD) for _ in range(2)] \
@@ -51,11 +51,15 @@ class Board(Dictable):
         random.shuffle(self.dev_cards)
                     
     def set_valid_village_postions(self, tile: Tile):
-        for player in self.players.values():
-            for point in tile.points:
-                if not point in player.valid_village_postions: 
-                    player.valid_village_postions.append(point)
-
+        for point in tile.points:
+            if not point in self.village_locations:
+                self.village_locations.append(point)
+    
+    def set_valid_road_positions(self, tile: Tile):
+        for i in range(1, len(tile.points)):
+            toAdd = set([tile.points[i-1], tile.points[i]])
+            if not toAdd in self.road_locations:
+                self.road_locations.append(toAdd)
 
     def init_row(self, row: list["Tile"], numbers, resources, up: bool):
         if len(row) <= 3:
@@ -105,7 +109,7 @@ class Board(Dictable):
             for j in range(self.COLUMNS):
                 self.points[f'({i}, {j})'] = Point(i, j)
     
-    def get_point(self, row, column):
+    def get_point(self, row, column) -> Point:
         return self.points[f'({row}, {column})'] if f'({row}, {column})' in self.points.keys() else None
         
     def set_tiles_points(self):
@@ -120,7 +124,12 @@ class Board(Dictable):
                                self.get_point(2*i +1, 2*j+r)]
     
     def get_tiles_of_point(self, point: Point) -> list['Tile']:
-        return [tile for tile in self.tiles if point in tile.points]
+        res = []
+        for row in self.tiles:
+            for tile in row:
+                if point in tile.points:
+                    res.append(tile)
+        return res
             
     def roll_dices(self):
         return [random.randint(1, 6), random.randint(1,6)]
@@ -133,33 +142,20 @@ class Board(Dictable):
             village  = player.buy(VILLAGE)
             if village == None:
                 return False
-        player.place_village(point)
-        tiles = self.get_tiles_of_point(point)
-        self.update_valid_road_positions(player, point)
-        neib_points = [self.get_point(coord[0], coord[1]) for coord in point.get_neib_points_coord() if self.get_point(coord[0], coord[1])]
-        for playerGame in self.players:
-            if point in playerGame.valid_village_postions:
-                playerGame.valid_village_postions.remove(point)
-            for neib_point in neib_points:
-                if neib_point in playerGame.valid_village_postions:
-                    playerGame.valid_village_postions.remove(neib_point)
+        if not point in self.valid_village_positions(player.id):
+            return False
+        player.place_village(village, point, isFirst, isSecond)        
         if isSecond:
+            tiles = self.get_tiles_of_point(point)
             for tile in tiles:
                 if not tile.resource in [DESERT, SEA]:
                     player.resources[tile.resource] += 1
+        point.vacant = False
+        for coord in point.get_neib_points_coord():
+            i, j = coord
+            self.get_point(i, j).vacant = False
         return True
     
-    def update_valid_road_positions(self, player:Player, point: Point):
-        neib_points = [self.get_point(coord[0], coord[1]) for coord in point.get_neib_points_coord() if self.get_point(coord[0], coord[1])]
-        for neib_point in neib_points:
-            if not self.is_sea_point(neib_point):
-                road_poses = [] 
-                for gamePlayer in self.players:
-                    for pos in self.get_construction_position(gamePlayer, ROAD):
-                        road_poses.append(set(pos))
-                if not set(point, neib_point) in road_poses:
-                    player.valid_roads_positions.append((point, neib_points))
-                
     def place_road(self, player: Player, point1: Point, point2: Point, freeRoad: bool):
         road: Construction = None
         if freeRoad:
@@ -170,12 +166,10 @@ class Board(Dictable):
             road = player.buy(ROAD)
         if not road:
             return False
+        if not set([point1, point2]) in self.road_locations:
+            return False
         player.place_road(road, point1, point2)
-        for gamePlayer in self.players.values():
-            if set(point1, point2) in gamePlayer.valid_roads_positions:
-                gamePlayer.valid_roads_positions.remove(set(point1, point2))
-        for point in [point1, point2]:
-            self.update_valid_road_positions(player, point)
+        self.road_locations.remove(set([point1, point2]))
         longest_path = max([gamePlayer.longest_path() for gamePlayer in self.other_payers(player)])
         if longest_path < player.longest_path():
             for gamePlayer in self.other_payers(player):
@@ -287,6 +281,27 @@ class Board(Dictable):
     
     def win(self):
         return max([player.get_real_points() for player in self.players.values()]) > self.point_limit
+    
+    def valid_road_positions(self, player):
+        res  = []
+        for type_of, constructionsList in player.constructions.items(): 
+            if type_of == DEV_CARD:
+                continue
+            for construction in constructionsList:
+                for coord in construction.coord:
+                    point = self.get_point(coord[0], coord[1])
+                    for neib_coord in point.get_neib_points_coord():
+                        toAdd = set([point, self.get_point(neib_coord[0], neib_coord[1])])
+                        if not toAdd in res and toAdd in self.road_locations:
+                            res.append(toAdd)
+        return res
+        
+    def valid_village_positions(self, player_id: int):
+        player = self.players[player_id]
+        if player.get_real_points() < 2:
+            return [point for point in self.village_locations if point.vacant]
+        return [point for point in self.village_locations if point.vacant and point.have_road(player.id)]
+    
     
     def to_dict(self):
         return {

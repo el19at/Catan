@@ -15,8 +15,6 @@ class Player(Dictable):
         self.army_size = 0
         self.biggest_army = False
         self.longest_road = False
-        self.valid_village_postions: list['Point'] = []
-        self.valid_roads_positions: list[set['Point']] = []
         self.dev_card_allowed = True
         self.ports = {LUMBER:False, BRICK:False, ORE:False, WOOL:False, GRAIN:False, THREE_TO_ONE:False}
     
@@ -45,16 +43,8 @@ class Player(Dictable):
         return None
     
     def place_village(self, village: Construction, point: Point, isFirst: bool = False, isSecond: bool = False):
-        if not point in self.valid_village_postions:
-            return False
-        if not(isFirst or isSecond):
-            road_points = []
-            for road in self.constructions[ROAD]:
-                for road_edge in road.coord:
-                    road_points.append(road_edge)
-            if not points_to_coords([point])[0] in road_points:
-                return False
-        self.place_construction(village, point)
+        self.place_construction(village, [point])
+        return True
     
     def place_construction(self, construction: Construction, points: list['Point']):
         for point in points:
@@ -128,7 +118,7 @@ class Player(Dictable):
         2 if self.longest_road else 0
     
     def get_real_points(self):
-        return self.get_real_points() + len([card for card in self.constructions[DEV_CARD] if card.action == VICTORY_POINT])
+        return self.get_visible_points() + len([card for card in self.constructions[DEV_CARD] if card.action == VICTORY_POINT])
     
     def drop_resource(self, resource: int):
         if self.resources[resource] > 0:
@@ -168,8 +158,6 @@ class Player(Dictable):
             'army_size': self.army_size,
             'biggest_army': self.biggest_army,
             'longest_road': self.longest_road,
-            'valid_village_postions': [point.to_dict() for point in self.valid_village_postions],
-            'valid_roads_positions': [list(pos) for pos in self.valid_roads_positions],
             'dev_card_allowed': self.dev_card_allowed,
             'ports': self.ports
         }

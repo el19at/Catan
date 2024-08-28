@@ -3,12 +3,26 @@ import pygame
 from Board import Board, Point, json_to_board
 import math
 import json
-from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, \
+from Dictable import Dictable
+from Constatnt import LUMBER,BRICK, ORE, WOOL, GRAIN, \
                     VILLAGE, CITY, ROAD, DEV_CARD, DESERT, WHITE, RED, \
                     BLUE, ORANGE, KNIGHT, VICTORY_POINT, YEAR_OF_PLENTY,\
-                    MONOPOLY, ROADS_BUILD, SEA
+                    MONOPOLY, ROADS_BUILD, SEA, PHASE_FIRST_ROLL, PHASE_FIRST_VILLAGE, PHASE_SECOND_VILLAGE, PHASE_INGAME
 
-COLORS = {SEA: pygame.Color('aqua'), GRAIN: pygame.Color('gold2'), BRICK: pygame.Color('brown1'), WOOL: pygame.Color('chartreuse'), LUMBER:pygame.Color('darkgreen'), ORE:pygame.Color('grey63'), DESERT:pygame.Color('lemonchiffon1')}
+COLORS = {
+    SEA: pygame.Color('aqua'),
+    GRAIN: pygame.Color('gold2'),
+    BRICK: pygame.Color('brown1'),
+    WOOL: pygame.Color('chartreuse'),
+    LUMBER:pygame.Color('darkgreen'),
+    ORE:pygame.Color('grey63'),
+    DESERT:pygame.Color('lemonchiffon1'),
+    RED:pygame.Color('red'),
+    BLUE: pygame.Color('blue'),
+    ORANGE: pygame.Color('orange'),
+    WHITE: pygame.Color('antiquewhite1'),
+    KNIGHT: pygame.Color('gray49')
+    }
 DEBUG = False
 class Game():
     def __init__(self, player_id,num_of_players: int = 3, point_limit: int = 10, board: Board=None, client:socket = None):
@@ -31,13 +45,7 @@ class Game():
         self.buttons = []
         self.draw_dashboard()
         self.build_village_mode = False
-    
-    def print_intersections(self):
-        for key, value in self.intersections.items():
-            if value:
-                print(f'{key}: ({value.row}, {value.column})')
-            else:
-                print(f'{key}: None')
+        self.game_phase = PHASE_FIRST_ROLL
         
     def draw_hexagon(self, color, center, edge_length, num_to_display: int = 0, txt = ""):
         # Convert rotation angle to radians
@@ -140,7 +148,12 @@ class Game():
         for pos, logicalPoint in self.intersections.items():
             if point == logicalPoint:
                 return pos
-            
+          
+    def intersection_coord_to_gui(self, coord):
+        for pos, logicalPoint in self.intersections.items():
+            if logicalPoint and coord[0] == logicalPoint.row and coord[1] == logicalPoint.column:
+                return pos
+          
     def draw_filled_rectangle(self, color, position, width, height):
         rect = pygame.Rect(position[0], position[1], width, height)
         pygame.draw.rect(self.main_screen, color, rect)
@@ -187,9 +200,13 @@ class Game():
         return i_start <= x and x <= i_end and j_start <= y and y <= j_end
     
     def draw_valid_village_positions(self):
-        for point in self.board.players[self.player_id].valid_village_postions:
-            self.draw_circle(pygame.Color('green') if self.build_village_mode else pygame.Color('white'), self.intersection_logical_to_gui(point), 5)
-    
+        for point in self.board.village_locations:
+            if not self.build_village_mode:
+                self.draw_circle(pygame.Color('white'), self.intersection_logical_to_gui(point), 5)
+            else:
+                if not point.get_collector():
+                    self.draw_circle(pygame.Color('green') if point in self.board.valid_village_positions(self.player_id) else pygame.Color('red'), self.intersection_logical_to_gui(point), 5)
+                
     def button_clicked(self, button_text):
         if button_text == 'roll dice':
             self.send_action(button_text)
@@ -197,16 +214,20 @@ class Game():
             self.send_action(button_text)
         elif button_text == 'village':
             self.build_village_mode = not self.build_village_mode
-        self.update()
 
     def handle_click(self, pos):
         tile_pos = self.get_tile_pos_by_click(pos)
         intersection = self.get_intersection_by_click(pos)
         if tile_pos[0]>=0:
             print(tile_pos)
+            self.update()
             return
         if intersection and self.build_village_mode:
             self.send_action('build village', [intersection])
+            self.board.place_village(self.board.players[self.player_id], intersection, True)
+            print(intersection.constructions)
+            self.build_village_mode = False
+            self.update()
             return
         button_text = ""
         for button in self.buttons:
@@ -216,12 +237,12 @@ class Game():
         if button_text == "":
             return
         self.button_clicked(button_text)
-        print(button_text)
-
+        self.update()
 
     def update(self):
         self.draw_dashboard()
         self.draw_valid_village_positions()
+        self.draw_villages()
         pygame.display.flip()
 
     def start(self):
@@ -239,12 +260,17 @@ class Game():
 
         pygame.quit()    
 
-    def send_action(self, action: str, arguments:list = []):
-        data = json.dumps({'action': action, 'arguments': [argument.do_dict() for argument in arguments]})
+    def send_action(self, action: str, arguments:list = [Dictable]):
+        data = json.dumps({'action': action, 'arguments': [argument.to_dict() for argument in arguments]})
         print(data)
         if self.client:
             self.client.sendall(data)
 
+    def draw_villages(self):
+        for id, player in self.board.players.items():
+            for village in player.constructions[VILLAGE]:
+                if len(village.coord) > 0:
+                    self.draw_circle(COLORS[id], self.intersection_coord_to_gui(village.coord[0]), 10)
     
 def distance(pos1, pos2):
     return ((pos1[0]-pos2[0])**2+(pos1[1]-pos2[1])**2)**0.5
