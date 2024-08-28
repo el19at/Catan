@@ -45,7 +45,9 @@ class Game():
         self.buttons = []
         self.draw_dashboard()
         self.build_village_mode = False
+        self.build_road_mode = False
         self.game_phase = PHASE_FIRST_ROLL
+        self.clicked_points:list[Point] = []
         
     def draw_hexagon(self, color, center, edge_length, num_to_display: int = 0, txt = ""):
         # Convert rotation angle to radians
@@ -199,14 +201,32 @@ class Game():
         x, y = pos
         return i_start <= x and x <= i_end and j_start <= y and y <= j_end
     
+    def draw_line(self, point1, point2, color):
+        pygame.draw.line(self.main_screen, color, point1, point2, 3)
+    
+    def draw_valid_road_positions(self):
+        for points in self.board.road_locations:
+            pointList = list(points)
+            if self.build_road_mode:
+                if points in self.board.valid_road_positions(self.player_id):
+                    self.draw_line(self.intersection_logical_to_gui(pointList[0]), self.intersection_logical_to_gui(pointList[1]), pygame.Color("green"))    
+                else:
+                    self.draw_line(self.intersection_logical_to_gui(pointList[0]), self.intersection_logical_to_gui(pointList[1]), pygame.Color("red"))    
+            else:
+                self.draw_line(self.intersection_logical_to_gui(pointList[0]), self.intersection_logical_to_gui(pointList[1]), pygame.Color("white"))    
+
+        self.draw_roads()
+        
+    
     def draw_valid_village_positions(self):
         for point in self.board.village_locations:
-            if not self.build_village_mode:
+            if not self.build_village_mode and not point.get_collector():
                 self.draw_circle(pygame.Color('white'), self.intersection_logical_to_gui(point), 5)
             else:
                 if not point.get_collector():
                     self.draw_circle(pygame.Color('green') if point in self.board.valid_village_positions(self.player_id) else pygame.Color('red'), self.intersection_logical_to_gui(point), 5)
-                
+        self.draw_villages()
+            
     def button_clicked(self, button_text):
         if button_text == 'roll dice':
             self.send_action(button_text)
@@ -214,6 +234,11 @@ class Game():
             self.send_action(button_text)
         elif button_text == 'village':
             self.build_village_mode = not self.build_village_mode
+            self.build_road_mode = False
+        elif button_text == 'road':
+            self.build_road_mode = not self.build_road_mode
+            self.build_village_mode = False
+        self.clicked_points = []
 
     def handle_click(self, pos):
         tile_pos = self.get_tile_pos_by_click(pos)
@@ -241,8 +266,8 @@ class Game():
 
     def update(self):
         self.draw_dashboard()
+        self.draw_valid_road_positions()
         self.draw_valid_village_positions()
-        self.draw_villages()
         pygame.display.flip()
 
     def start(self):
@@ -271,6 +296,12 @@ class Game():
             for village in player.constructions[VILLAGE]:
                 if len(village.coord) > 0:
                     self.draw_circle(COLORS[id], self.intersection_coord_to_gui(village.coord[0]), 10)
+    
+    def draw_roads(self):
+        for id, player in self.board.players.items():
+            for road in player.constructions[ROAD]:
+                if len(road.coord) > 0:
+                    self.draw_line(road.coord[0], road.coord[0], COLORS[id])
     
 def distance(pos1, pos2):
     return ((pos1[0]-pos2[0])**2+(pos1[1]-pos2[1])**2)**0.5

@@ -282,7 +282,8 @@ class Board(Dictable):
     def win(self):
         return max([player.get_real_points() for player in self.players.values()]) > self.point_limit
     
-    def valid_road_positions(self, player):
+    def valid_road_positions(self, player_id: int):
+        player = self.players[player_id]
         res  = []
         for type_of, constructionsList in player.constructions.items(): 
             if type_of == DEV_CARD:
