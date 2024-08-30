@@ -47,7 +47,7 @@ class Game():
         self.build_village_mode = False
         self.build_road_mode = False
         self.game_phase = PHASE_FIRST_ROLL
-        self.clicked_points:list[Point] = []
+        self.clicked_point: Point = None
         
     def draw_hexagon(self, color, center, edge_length, num_to_display: int = 0, txt = ""):
         # Convert rotation angle to radians
@@ -215,9 +215,7 @@ class Game():
             else:
                 self.draw_line(self.intersection_logical_to_gui(pointList[0]), self.intersection_logical_to_gui(pointList[1]), pygame.Color("white"))    
 
-        self.draw_roads()
         
-    
     def draw_valid_village_positions(self):
         for point in self.board.village_locations:
             if not self.build_village_mode and not point.get_collector():
@@ -225,7 +223,7 @@ class Game():
             else:
                 if not point.get_collector():
                     self.draw_circle(pygame.Color('green') if point in self.board.valid_village_positions(self.player_id) else pygame.Color('red'), self.intersection_logical_to_gui(point), 5)
-        self.draw_villages()
+        
             
     def button_clicked(self, button_text):
         if button_text == 'roll dice':
@@ -238,7 +236,7 @@ class Game():
         elif button_text == 'road':
             self.build_road_mode = not self.build_road_mode
             self.build_village_mode = False
-        self.clicked_points = []
+        self.clicked_point = None
 
     def handle_click(self, pos):
         tile_pos = self.get_tile_pos_by_click(pos)
@@ -254,6 +252,17 @@ class Game():
             self.build_village_mode = False
             self.update()
             return
+        if intersection and self.build_road_mode:
+            if not self.clicked_point:
+                self.clicked_point = intersection
+                return
+            elif self.clicked_point:
+                self.send_action('build road', [self.clicked_point, intersection])
+                print(self.board.place_road(self.board.players[self.player_id], self.clicked_point, intersection, True))
+                self.clicked_point = None
+                self.build_road_mode = False
+                self.update()
+                return
         button_text = ""
         for button in self.buttons:
             if self.click_in_button(button, pos):
@@ -268,6 +277,8 @@ class Game():
         self.draw_dashboard()
         self.draw_valid_road_positions()
         self.draw_valid_village_positions()
+        self.draw_roads()
+        self.draw_villages()
         pygame.display.flip()
 
     def start(self):
@@ -301,13 +312,13 @@ class Game():
         for id, player in self.board.players.items():
             for road in player.constructions[ROAD]:
                 if len(road.coord) > 0:
-                    self.draw_line(road.coord[0], road.coord[0], COLORS[id])
+                    self.draw_line(self.intersection_coord_to_gui(road.coord[0]), self.intersection_coord_to_gui(road.coord[1]), COLORS[id])
     
 def distance(pos1, pos2):
     return ((pos1[0]-pos2[0])**2+(pos1[1]-pos2[1])**2)**0.5
 
 def main():
-    game = Game(player_id=RED)
+    game = Game(player_id=RED+1)
     game.start()
     
 if __name__ == '__main__':

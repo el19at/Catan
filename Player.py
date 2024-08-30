@@ -53,8 +53,6 @@ class Player(Dictable):
         self.constructions_counter[construction.type_of] -= 1
      
     def place_road(self, road: Construction, point1: Point, point2: Point):
-        if not set(point1, point2) in self.valid_roads_positions:
-            return False
         self.place_construction(road, [point1, point2])
         return True
     
@@ -131,6 +129,8 @@ class Player(Dictable):
                 if self.constructions[VILLAGE][-1-i].coord in construction.coord:
                     roads[0] = construction
                     break
+        if len(roads)==0:
+            return 0
         return max(self.longest_path_rec(roads[0]), self.longest_path_rec(roads[1]))
     
     def longest_path_rec(self, road: Construction):

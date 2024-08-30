@@ -60,7 +60,8 @@ class Board(Dictable):
             toAdd = set([tile.points[i-1], tile.points[i]])
             if not toAdd in self.road_locations:
                 self.road_locations.append(toAdd)
-
+        if not set([tile.points[0], tile.points[-1]]) in self.road_locations:
+            self.road_locations.append(set([tile.points[0], tile.points[-1]]))
     def init_row(self, row: list["Tile"], numbers, resources, up: bool):
         if len(row) <= 3:
             return
@@ -162,11 +163,14 @@ class Board(Dictable):
             for playerRoad in player.constructions[ROAD]:
                 if not playerRoad.is_placed():
                     road = playerRoad
+                    break
         else:
             road = player.buy(ROAD)
         if not road:
             return False
         if not set([point1, point2]) in self.road_locations:
+            return False
+        if not set([point1, point2]) in self.valid_road_positions(player.id):
             return False
         player.place_road(road, point1, point2)
         self.road_locations.remove(set([point1, point2]))
