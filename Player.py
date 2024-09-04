@@ -33,12 +33,13 @@ class Player(Dictable):
             return None
         price = self.constructions[constType][0].price
         for resource, amount in self.resources.items():
-            if amount < price[resource]:
+            if resource in price.keys() and amount < price[resource]:
                 return None
         for resource, amount in self.resources.items():
-            self.resources[resource] -= price[resource]
+            if resource in price.keys():
+                self.resources[resource] -= price[resource]
         for construction in self.constructions[constType]:
-            if not construction.isPlaced():
+            if not construction.is_placed():
                 return construction
         return None
     

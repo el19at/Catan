@@ -46,8 +46,12 @@ class Game():
         self.draw_dashboard()
         self.build_village_mode = False
         self.build_road_mode = False
+        self.build_city_mode = False
         self.game_phase = PHASE_FIRST_ROLL
         self.clicked_point: Point = None
+        # for tests only
+        self.board.players[self.player_id].resources[GRAIN] = 20
+        self.board.players[self.player_id].resources[ORE] = 30
         
     def draw_hexagon(self, color, center, edge_length, num_to_display: int = 0, txt = ""):
         # Convert rotation angle to radians
@@ -152,6 +156,8 @@ class Game():
                 return pos
           
     def intersection_coord_to_gui(self, coord):
+        if (type(coord[0])== type([])):
+            coord = coord[0]
         for pos, logicalPoint in self.intersections.items():
             if logicalPoint and coord[0] == logicalPoint.row and coord[1] == logicalPoint.column:
                 return pos
@@ -215,7 +221,6 @@ class Game():
             else:
                 self.draw_line(self.intersection_logical_to_gui(pointList[0]), self.intersection_logical_to_gui(pointList[1]), pygame.Color("white"))    
 
-        
     def draw_valid_village_positions(self):
         for point in self.board.village_locations:
             if not self.build_village_mode and not point.get_collector():
@@ -224,6 +229,17 @@ class Game():
                 if not point.get_collector():
                     self.draw_circle(pygame.Color('green') if point in self.board.valid_village_positions(self.player_id) else pygame.Color('red'), self.intersection_logical_to_gui(point), 5)
         
+    def draw_valid_city_postions(self):
+        for village in self.board.players[self.player_id].constructions[VILLAGE]:
+            if village.is_placed():
+                self.draw_circle(pygame.Color('green'), self.intersection_coord_to_gui(village.coord), 5)
+            
+    def draw_city(self):
+        for id, player in self.board.players.items():
+            for city in player.constructions[CITY]:
+                if city.is_placed():
+                    x, y = self.intersection_coord_to_gui(city.coord)
+                    self.draw_filled_rectangle(COLORS[id], (x-10, y-10), 20, 20)
             
     def button_clicked(self, button_text):
         if button_text == 'roll dice':
@@ -233,9 +249,16 @@ class Game():
         elif button_text == 'village':
             self.build_village_mode = not self.build_village_mode
             self.build_road_mode = False
+            self.build_city_mode = False
         elif button_text == 'road':
             self.build_road_mode = not self.build_road_mode
             self.build_village_mode = False
+            self.build_city_mode = False
+        elif button_text == 'city':
+            self.build_road_mode = False
+            self.build_village_mode = False
+            self.build_city_mode = not self.build_city_mode
+            
         self.clicked_point = None
 
     def handle_click(self, pos):
@@ -248,7 +271,6 @@ class Game():
         if intersection and self.build_village_mode:
             self.send_action('build village', [intersection])
             self.board.place_village(self.board.players[self.player_id], intersection, True)
-            print(intersection.constructions)
             self.build_village_mode = False
             self.update()
             return
@@ -263,6 +285,12 @@ class Game():
                 self.build_road_mode = False
                 self.update()
                 return
+        if intersection and self.build_city_mode:
+            self.send_action('build city', [intersection])
+            self.board.place_city(self.board.players[self.player_id], intersection)
+            self.build_city_mode = False
+            self.update()
+            return
         button_text = ""
         for button in self.buttons:
             if self.click_in_button(button, pos):
@@ -279,6 +307,9 @@ class Game():
         self.draw_valid_village_positions()
         self.draw_roads()
         self.draw_villages()
+        self.draw_city()
+        if self.build_city_mode:
+            self.draw_valid_city_postions()
         pygame.display.flip()
 
     def start(self):
