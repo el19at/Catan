@@ -27,6 +27,7 @@ DEBUG = False
 class Game():
     def __init__(self, player_id,num_of_players: int = 3, point_limit: int = 10, board: Board=None, client:socket = None):
         pygame.init()
+        pygame.display.set_caption('Catan')
         self.board = None
         if  board:
             self.board = board
@@ -43,15 +44,20 @@ class Game():
         self.tile_size = 50
         self.draw_tiles(0, 0, self.tile_size)
         self.buttons = []
-        self.draw_dashboard()
         self.build_village_mode = False
         self.build_road_mode = False
         self.build_city_mode = False
+        self.force_build_road_mode = False
         self.game_phase = PHASE_FIRST_ROLL
         self.clicked_point: Point = None
+        self.trade_mode = True
+        self.update()
         # for tests only
-        self.board.players[self.player_id].resources[GRAIN] = 20
+        self.board.players[self.player_id].resources[GRAIN] = 30
         self.board.players[self.player_id].resources[ORE] = 30
+        self.board.players[self.player_id].resources[LUMBER] = 30
+        self.board.players[self.player_id].resources[BRICK] = 30
+        self.board.players[self.player_id].resources[WOOL] = 30
         
     def draw_hexagon(self, color, center, edge_length, num_to_display: int = 0, txt = ""):
         # Convert rotation angle to radians
@@ -184,10 +190,20 @@ class Game():
             i+=50
         self.write_text((700,95), 'Build')
         self.draw_rectangle(pygame.Color('white'), pygame.Color('black'), (670, 102), 280, 40, 3)
-        self.add_button((680, 108), 60, 28, 'road')
-        self.add_button((745, 108), 60, 28, 'village')
-        self.add_button((810, 108), 60, 28, 'city')
-        self.add_button((875, 108), 60, 28, 'card')
+        self.add_button((675, 108), 85, 28, 'road')
+        self.add_button((768, 108), 85, 28, 'village')
+        self.add_button((860, 108), 85, 28, 'city')
+        
+        self.add_button((670, 148), 135, 28, 'card')
+        self.add_button((815, 148), 135, 28, 'trade')
+        
+        self.draw_cards_trade()
+        
+        self.write_text((700,438), 'Stats')
+        self.draw_rectangle(pygame.Color('white'), pygame.Color('black'), (670, 445), 280, 40, 3)
+        
+        self.write_text((701,463), 'points:')
+        self.write_text((737, 463), f'{self.board.players[self.player_id].get_real_points()}')
         
         self.add_button((670, 490), 130, 40, 'roll dice')
         self.add_button((820, 490), 130, 40, 'end turn')
@@ -270,7 +286,14 @@ class Game():
             return
         if intersection and self.build_village_mode:
             self.send_action('build village', [intersection])
-            self.board.place_village(self.board.players[self.player_id], intersection, True)
+            if 5 - self.board.players[self.player_id].constructions_counter[VILLAGE] == 0:
+                self.board.place_village(self.board.players[self.player_id], intersection, True)
+                self.force_build_road_mode = True
+            elif 5 - self.board.players[self.player_id].constructions_counter[VILLAGE] == 1:
+                self.board.place_village(self.board.players[self.player_id], intersection, False, True)
+                self.force_build_road_mode = True
+            else:
+                self.board.place_village(self.board.players[self.player_id], intersection)
             self.build_village_mode = False
             self.update()
             return
@@ -280,9 +303,11 @@ class Game():
                 return
             elif self.clicked_point:
                 self.send_action('build road', [self.clicked_point, intersection])
-                print(self.board.place_road(self.board.players[self.player_id], self.clicked_point, intersection, True))
+                placed = self.board.place_road(self.board.players[self.player_id], self.clicked_point, intersection, self.board.players[self.player_id].constructions_counter[ROAD] - 15 < 2)
                 self.clicked_point = None
                 self.build_road_mode = False
+                if placed:
+                    self.force_build_road_mode = False
                 self.update()
                 return
         if intersection and self.build_city_mode:
@@ -302,6 +327,8 @@ class Game():
         self.update()
 
     def update(self):
+        if self.force_build_road_mode and not self.build_road_mode:
+            self.button_clicked('road')
         self.draw_dashboard()
         self.draw_valid_road_positions()
         self.draw_valid_village_positions()
@@ -344,6 +371,9 @@ class Game():
             for road in player.constructions[ROAD]:
                 if len(road.coord) > 0:
                     self.draw_line(self.intersection_coord_to_gui(road.coord[0]), self.intersection_coord_to_gui(road.coord[1]), COLORS[id])
+    
+    def draw_cards_trade(self):
+        self.draw_rectangle(pygame.Color('white'), pygame.Color('black'), (670, 170), 280, 256, 3)
     
 def distance(pos1, pos2):
     return ((pos1[0]-pos2[0])**2+(pos1[1]-pos2[1])**2)**0.5

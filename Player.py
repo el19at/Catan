@@ -111,10 +111,13 @@ class Player(Dictable):
         return True
     
     def get_visible_points(self):
-        return (5-self.constructions_counter[VILLAGE]) +\
-        2*(4-self.constructions_counter[CITY]) +\
-        2 if self.biggest_army else 0 +\
-        2 if self.longest_road else 0
+        res = 5-self.constructions_counter[VILLAGE]
+        res += 2*(4-self.constructions_counter[CITY])
+        if self.biggest_army:
+            res += 2
+        if self.longest_road:
+            res += 2
+        return res
     
     def get_real_points(self):
         return self.get_visible_points() + len([card for card in self.constructions[DEV_CARD] if card.action == VICTORY_POINT])
