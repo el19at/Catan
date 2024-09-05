@@ -1,6 +1,6 @@
 import socket
 import pygame
-from Board import Board, Point, json_to_board
+from Board import Board, Point, json_to_board, Player
 import math
 import json
 from Dictable import Dictable
@@ -204,6 +204,11 @@ class Game():
         
         self.write_text((701,463), 'points:')
         self.write_text((737, 463), f'{self.board.players[self.player_id].get_real_points()}')
+        self.write_text((775,463), 'path:')
+        player: Player =  self.board.players[self.player_id]
+        self.write_text((803, 463), f'{player.calc_longest_path()}')
+        self.write_text((875,463), 'army size: ')
+        self.write_text((920, 463), f'{self.board.players[self.player_id].army_size}')
         
         self.add_button((670, 490), 130, 40, 'roll dice')
         self.add_button((820, 490), 130, 40, 'end turn')
@@ -281,7 +286,6 @@ class Game():
         tile_pos = self.get_tile_pos_by_click(pos)
         intersection = self.get_intersection_by_click(pos)
         if tile_pos[0]>=0:
-            print(tile_pos)
             self.update()
             return
         if intersection and self.build_village_mode:
@@ -356,7 +360,6 @@ class Game():
 
     def send_action(self, action: str, arguments:list = [Dictable]):
         data = json.dumps({'action': action, 'arguments': [argument.to_dict() for argument in arguments]})
-        print(data)
         if self.client:
             self.client.sendall(data)
 

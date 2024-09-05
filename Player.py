@@ -11,10 +11,9 @@ class Player(Dictable):
         self.resources: dict[int:int] = {}
         self.init_constructions()
         self.init_resources()
-        self.longest_road_size = 0
         self.army_size = 0
         self.biggest_army = False
-        self.longest_road = False
+        self.longest_road_points = False
         self.dev_card_allowed = True
         self.ports = {LUMBER:False, BRICK:False, ORE:False, WOOL:False, GRAIN:False, THREE_TO_ONE:False}
     
@@ -115,7 +114,7 @@ class Player(Dictable):
         res += 2*(4-self.constructions_counter[CITY])
         if self.biggest_army:
             res += 2
-        if self.longest_road:
+        if self.longest_road_points:
             res += 2
         return res
     
@@ -126,22 +125,54 @@ class Player(Dictable):
         if self.resources[resource] > 0:
             self.resources[resource] -= 1
     
-    def longest_path(self):
-        roads: list[Construction] = []
-        for i in range(2):
-            for construction in self.constructions[ROAD]:
-                if self.constructions[VILLAGE][-1-i].coord in construction.coord:
-                    roads[0] = construction
-                    break
-        if len(roads)==0:
+    def calc_longest_path(self):
+        explored = {}
+        for road in self.constructions[ROAD]:
+            if road.is_placed():
+                for c in road.coord:
+                    explored[tuple(c)] = False 
+        if len(explored) == 0:
             return 0
-        return max(self.longest_path_rec(roads[0]), self.longest_path_rec(roads[1]))
+        res = []
+        for c in explored.keys():
+            res.append(self.farest_path(c, self.deep_copy(explored)))
+            print(f'point:{c}, longest: {res[-1]}')
+        return max(res)
     
-    def longest_path_rec(self, road: Construction):
-        roads = self.find_roads(road)
-        if len(roads) == 0:
-            return 1
-        return 1 + max([self.longest_path_rec(playerRoad) for playerRoad in roads])
+    def farest_path(self, c: tuple[int], explored):
+        #print(f'point:{c}, \nexplored: {explored}')
+        if explored[c]:
+            return 0
+        explored[c] = True
+        to_explore = []
+        for neib in neib_coord(c):
+            if neib in explored.keys() and not explored[neib] and self.road_exist_at_position(neib, c):
+                to_explore.append(neib)
+        #print(f'point: {c}, to explore: {to_explore}')
+        if len(to_explore) == 0:
+            return 0
+        return 1 + max([self.farest_path(c1, self.deep_copy(explored)) for c1 in to_explore])
+                    
+    def deep_copy(self, dictionary):
+        res = {}
+        for key, value in dictionary.items():
+            res[key] = value
+        return res
+    
+    def road_exist_at_position(self, c1, c2):
+        for road in [road for road in self.constructions[ROAD] if road.is_placed()]:
+            p1, p2 = tuple(road.coord[0]), tuple(road.coord[1])
+            if set([p1, p2]) == set([c1, c2]):
+                return True
+        return False
+    
+    def have_road(self, a, b):
+        for road in self.constructions[ROAD]:
+            if not road.is_placed():
+                continue
+            if [a, b] == road.coord[0] or [a, b] == road.coord[1]:
+                return True
+        return False
     
     def find_roads(self, road: Construction):
         res = []
@@ -158,10 +189,9 @@ class Player(Dictable):
             'constructions': {k: [c.to_dict() for c in v] for k, v in self.constructions.items()},
             'constructions_counter': self.constructions_counter,
             'resources': self.resources,
-            'longest_road_size': self.longest_road_size,
             'army_size': self.army_size,
             'biggest_army': self.biggest_army,
-            'longest_road': self.longest_road,
+            'longest_road': self.longest_road_points,
             'dev_card_allowed': self.dev_card_allowed,
             'ports': self.ports
         }
@@ -172,7 +202,6 @@ class Player(Dictable):
         obj.constructions = {int(k): [Construction.from_dict(c) for c in v] for k, v in data['constructions'].items()}
         obj.constructions_counter = data['constructions_counter']
         obj.resources = data['resources']
-        obj.longest_road_size = data['longest_road_size']
         obj.army_size = data['army_size']
         obj.biggest_army = data['biggest_army']
         obj.longest_road = data['longest_road']
@@ -183,4 +212,10 @@ class Player(Dictable):
         return obj
     
 def points_to_coords(points: list['Point']):
-    return [[point.row, point.column] for point in points]    
+    return [[point.row, point.column] for point in points]
+
+def neib_coord(l):
+    i, j = l[0], l[1]
+    if i % 2 == 0:
+        return [tuple([i-1, j]), tuple([i+1,j-1]), tuple([i+1, j+1])]
+    return [tuple([i-1, j-1]), tuple([i-1, j+1]), tuple([i+1, j])]

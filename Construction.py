@@ -9,7 +9,7 @@ class Construction(Dictable):
         self.price = self.init_price()
     
     def place(self, coord: list[list['int']]):
-        self.coord = coord
+        self.coord = deep_copy(coord)
     
     def remove(self):
         if self.type_of == VILLAGE:
@@ -42,6 +42,15 @@ class Construction(Dictable):
         obj.coord = data['coord']
         obj.price = data['price']
         return obj
+
+def deep_copy(l):
+    res = []
+    for a in l:
+        toAppend = []
+        for b in a:
+            toAppend.append(b)
+        res.append(toAppend)
+    return res
 class Dev_card(Construction):
     def __init__(self, action: int) -> None:
         super().__init__(DEV_CARD, -1)

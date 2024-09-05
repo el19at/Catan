@@ -174,8 +174,8 @@ class Board(Dictable):
             return False
         player.place_road(road, point1, point2)
         self.road_locations.remove(set([point1, point2]))
-        longest_path = max([gamePlayer.longest_path() for gamePlayer in self.other_payers(player)])
-        if longest_path < player.longest_path():
+        longest_path = max([gamePlayer.calc_longest_path() for gamePlayer in self.other_payers(player)])
+        if longest_path < player.calc_longest_path():
             for gamePlayer in self.other_payers(player):
                 gamePlayer.longest_road = False
             player.longest_path = True
