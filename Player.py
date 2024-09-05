@@ -73,10 +73,10 @@ class Player(Dictable):
         return True
     
     def buy_dev_card(self, dev_card: Dev_card):
-        for resource, amount in self.resources.items():
-            if amount < dev_card.price[resource]:
+        for resource, amount in dev_card.price.items():
+            if amount > self.resources[resource]:
                 return False
-        for resource, amount in self.resources.items():
+        for resource, amount in dev_card.price.items():
             self.resources[resource] -= dev_card.price[resource]
         self.constructions[DEV_CARD].append(dev_card)
         self.constructions_counter[DEV_CARD] += 1
@@ -136,11 +136,9 @@ class Player(Dictable):
         res = []
         for c in explored.keys():
             res.append(self.farest_path(c, self.deep_copy(explored)))
-            print(f'point:{c}, longest: {res[-1]}')
         return max(res)
     
     def farest_path(self, c: tuple[int], explored):
-        #print(f'point:{c}, \nexplored: {explored}')
         if explored[c]:
             return 0
         explored[c] = True
@@ -148,7 +146,6 @@ class Player(Dictable):
         for neib in neib_coord(c):
             if neib in explored.keys() and not explored[neib] and self.road_exist_at_position(neib, c):
                 to_explore.append(neib)
-        #print(f'point: {c}, to explore: {to_explore}')
         if len(to_explore) == 0:
             return 0
         return 1 + max([self.farest_path(c1, self.deep_copy(explored)) for c1 in to_explore])

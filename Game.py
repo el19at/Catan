@@ -222,6 +222,18 @@ class Game():
         self.write_text(text_pos, txt)
         self.buttons.append((position, width, height, txt))
     
+    def remove_button(self, button_txt):
+        button = None
+        for b in self.buttons:
+            if b[3] == button_txt:
+                button = b
+                break
+        if not button:
+            return
+        position, width, height, txt = button
+        self.draw_filled_rectangle(pygame.Color('white'), position, width, height)
+        self.buttons.remove(button)
+    
     def click_in_button(self, button, pos):
         i_start, j_start = button[0]
         i_end, j_end = i_start+button[1], j_start+button[2]
@@ -279,7 +291,13 @@ class Game():
             self.build_road_mode = False
             self.build_village_mode = False
             self.build_city_mode = not self.build_city_mode
-            
+        elif button_text == 'trade':
+            self.trade_mode = True
+        elif button_text == 'card':
+            self.trade_mode = False
+        elif button_text == 'buy card':
+            self.send_action(button_text, [])
+            self.board.buy_dev_card(self.board.players[self.player_id])
         self.clicked_point = None
 
     def handle_click(self, pos):
@@ -377,6 +395,34 @@ class Game():
     
     def draw_cards_trade(self):
         self.draw_rectangle(pygame.Color('white'), pygame.Color('black'), (670, 170), 280, 256, 3)
+        self.remove_cards_trade_buttons()
+        if self.trade_mode:
+            self.draw_trade_dashboard()
+        else:
+            self.draw_cards_dashboard()
+    
+    def draw_cards_dashboard(self):
+        i_start, j_start = 670, 170
+        width, height = 280, 256
+        self.add_button((i_start + 5, j_start + 5),width-10, 30, 'buy card')
+        i, j = i_start + 5, j_start + 40
+        for card in self.board.players[self.player_id].constructions[DEV_CARD]:
+            self.add_button((i, j), 130, 20, f'{card.get_action_str()}')
+            i += 135
+            if i + 130 >= i_start + width:
+                i = i_start + 5
+                j += 25
+    
+    def draw_trade_dashboard(self):
+        pass
+            
+    def remove_cards_trade_buttons(self):
+        i_start, j_start = 670, 170
+        i_end, j_end = i_start + 280, j_start + 256
+        for button in self.buttons:
+            i, j = button[0]
+            if i_start <= i and i <= i_end and j_start <= j and j <= j_end: 
+                self.remove_button(button[3])
     
 def distance(pos1, pos2):
     return ((pos1[0]-pos2[0])**2+(pos1[1]-pos2[1])**2)**0.5

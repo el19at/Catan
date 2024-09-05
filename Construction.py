@@ -1,4 +1,4 @@
-from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, VILLAGE, CITY, ROAD, DEV_CARD
+from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, VILLAGE, CITY, ROAD, DEV_CARD, KNIGHT, VICTORY_POINT, MONOPOLY, ROADS_BUILD, YEAR_OF_PLENTY
 from Dictable import Dictable
 
 class Construction(Dictable):
@@ -71,6 +71,18 @@ class Dev_card(Construction):
             'is_allowed': self.is_allowed,
             'used': self.used
         }
+    
+    def get_action_str(self):
+        if self.action == KNIGHT:
+            return 'knight'
+        if self.action == VICTORY_POINT:
+            return 'victory point'
+        if self.action == YEAR_OF_PLENTY:
+            return 'year of plenty'
+        if self.action == MONOPOLY:
+            return 'monopoly'
+        if self.action == ROADS_BUILD:
+            return 'roads build'
     @classmethod
     def from_dict(cls, data):
         obj = cls(data['action'])
