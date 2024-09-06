@@ -1,6 +1,7 @@
 import socket
 import pygame
-from Board import Board, Point, json_to_board, Player
+from pygame import Color
+from Board import Board, Point, json_to_board, Player, Dev_card, Tile
 import math
 import json
 from Dictable import Dictable
@@ -51,6 +52,9 @@ class Game():
         self.game_phase = PHASE_FIRST_ROLL
         self.clicked_point: Point = None
         self.trade_mode = True
+        self.button_pos_to_card: dict[tuple:Dev_card] = {}
+        self.robb_mode: bool = False
+        self.tile_to_robb: Tile = None
         self.update()
         # for tests only
         self.board.players[self.player_id].resources[GRAIN] = 30
@@ -132,7 +136,7 @@ class Game():
                 if DEBUG:
                     self.draw_hexagon(COLORS[tile.resurce], center_round, c-2, 0, f'{center_round}')
                 else:
-                    self.draw_hexagon(COLORS[tile.resource], center_round, c-2, tile.number, "")
+                    self.draw_hexagon(COLORS[tile.resource], center_round, c-2, 0 if tile.is_robbed() else tile.number, "")
                     
     def get_tile_pos_by_click(self, pos):
         c = self.tile_size
@@ -216,10 +220,10 @@ class Game():
     def draw_circle(self, color, position, radius):
         pygame.draw.circle(self.main_screen, color, position, radius)
     
-    def add_button(self, position, width, height, txt):
-        self.draw_rectangle(pygame.Color('white'), pygame.Color('black'), position, width, height, 3)
+    def add_button(self, position, width, height, txt, color = pygame.Color('black')):
+        self.draw_rectangle(pygame.Color('white'), color, position, width, height, 3)
         text_pos = (position[0]+width//2, position[1]+height//2)
-        self.write_text(text_pos, txt)
+        self.write_text(text_pos, txt, height-3)
         self.buttons.append((position, width, height, txt))
     
     def remove_button(self, button_txt):
@@ -274,7 +278,7 @@ class Game():
                     x, y = self.intersection_coord_to_gui(city.coord)
                     self.draw_filled_rectangle(COLORS[id], (x-10, y-10), 20, 20)
             
-    def button_clicked(self, button_text):
+    def button_clicked(self, button_text, position = (-1, -1)):
         if button_text == 'roll dice':
             self.send_action(button_text)
         elif button_text == 'end turn':
@@ -298,14 +302,30 @@ class Game():
         elif button_text == 'buy card':
             self.send_action(button_text, [])
             self.board.buy_dev_card(self.board.players[self.player_id])
+        elif button_text == 'knight':
+            if not self.board.use_dev_card(self.board.players[self.player_id], self.button_pos_to_card[position]):
+                return
+            self.robb_mode = True
+            
         self.clicked_point = None
 
     def handle_click(self, pos):
         tile_pos = self.get_tile_pos_by_click(pos)
         intersection = self.get_intersection_by_click(pos)
-        if tile_pos[0]>=0:
-            self.update()
-            return
+        if self.robb_mode:
+            if tile_pos == (-1, -1):
+                self.update()
+                return
+            else:
+                tile = self.board.tiles[tile_pos[0]][tile_pos[1]]
+                if self.board.robbed_tile == tile:
+                    self.update()
+                    return
+                self.board.robb(self.board.players[self.player_id], tile, None, False)
+                self.draw_tiles(0, 0, self.tile_size)
+                self.robb_mode = False
+                self.update()
+                return
         if intersection and self.build_village_mode:
             self.send_action('build village', [intersection])
             if 5 - self.board.players[self.player_id].constructions_counter[VILLAGE] == 0:
@@ -338,17 +358,20 @@ class Game():
             self.build_city_mode = False
             self.update()
             return
-        button_text = ""
+        button_text, button_pos = "", (-1, -1)
         for button in self.buttons:
             if self.click_in_button(button, pos):
-                 button_text = button[3]
+                 button_text, button_pos = button[3], button[0]
                  break
         if button_text == "":
             return
-        self.button_clicked(button_text)
+        self.button_clicked(button_text, button_pos)
         self.update()
 
     def update(self):
+        # TEST
+        self.board.players[self.player_id].end_turn()
+        #
         if self.force_build_road_mode and not self.build_road_mode:
             self.button_clicked('road')
         self.draw_dashboard()
@@ -405,13 +428,15 @@ class Game():
         i_start, j_start = 670, 170
         width, height = 280, 256
         self.add_button((i_start + 5, j_start + 5),width-10, 30, 'buy card')
-        i, j = i_start + 5, j_start + 40
-        for card in self.board.players[self.player_id].constructions[DEV_CARD]:
-            self.add_button((i, j), 130, 20, f'{card.get_action_str()}')
-            i += 135
-            if i + 130 >= i_start + width:
-                i = i_start + 5
-                j += 25
+        i, j = i_start + 6, j_start + 40
+        cards = self.board.players[self.player_id].constructions[DEV_CARD]
+        for card in cards:
+            self.add_button((i, j), 86, 21, f'{card.get_action_str()}', Color('green') if card.usable() and self.board.players[self.player_id].dev_card_allowed else Color('red'))
+            self.button_pos_to_card[(i, j)] = card
+            i += 91
+            if i + 86 >= i_start + width:
+                i = i_start + 6
+                j += 26
     
     def draw_trade_dashboard(self):
         pass

@@ -254,17 +254,17 @@ class Board(Dictable):
         self.place_road(player, location1[0], location1[1], True)
         self.place_road(player, location2[0], location2[1], True)
     
-    def use_knight(self, player: Player, tile: Tile, playerToRobb: Player, fromDice:bool = True):
+    def robb(self, player: Player, tile: Tile, playerToRobb: Player = None, fromDice:bool = True):
         self.robbed_tile.unrobb()
         self.robbed_tile = tile
         tile.robb()
-        if playerToRobb.get_num_of_resources() > 0:
+        if playerToRobb and playerToRobb.get_num_of_resources() > 0:
             resource = random.choice([key for key in playerToRobb.resources.keys() if playerToRobb.resources[key]>0])
             playerToRobb.resources[resource] -= 1
             player.resources[resource] += 1
         if not fromDice:
             player.army_size += 1
-            biggest_army = max([gamePlayer.army_size for gamePlayer in self.players])
+            biggest_army = max([gamePlayer.army_size for gamePlayer in self.players.values()])
             if player.army_size >= 3:
                 if player.army_size > biggest_army:
                     for gamePlayer in self.players:

@@ -180,6 +180,11 @@ class Player(Dictable):
                 res.append(playerRoad)
         return res
     
+    def end_turn(self):
+        for card in self.constructions[DEV_CARD]:
+            card.allow_use()
+        self.dev_card_allowed = True
+    
     def to_dict(self):
         return {
             'id': self.id,

@@ -64,6 +64,13 @@ class Dev_card(Construction):
     def set_used(self):
         self.used = True
 
+    def usable(self):
+        if self.action == VICTORY_POINT:
+            return False
+        if self.used:
+            return False
+        return self.is_allowed
+    
     def to_dict(self):
         return {
             **super().to_dict(),
