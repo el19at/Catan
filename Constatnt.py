@@ -25,3 +25,5 @@ PHASE_SECOND_VILLAGE = 2
 PHASE_INGAME = 3
 TILES_NUMBERS = 2*[i for i in range(3, 7)] + 2*[i for i in range(8, 12)] + [2, 12, 0]
 TILES_RESOURCES = [DESERT] + 4*[WOOL, GRAIN, LUMBER] + 3*[BRICK, ORE]
+RESOURCE_TO_STR = {LUMBER:'lumber', BRICK:'brick', ORE:'ore', WOOL:'wool', GRAIN:'grain'}
+RESOURCE_TO_INT = {'lumber': LUMBER, 'brick':BRICK, 'ore':ORE, 'wool':WOOL, 'grain':GRAIN}

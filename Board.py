@@ -245,7 +245,7 @@ class Board(Dictable):
     
     def use_monopoly(self, player: Player, resource: int):
         get = 0
-        for gamePlayer in self.players:
+        for gamePlayer in self.players.values():
             get += gamePlayer.resources[resource]
             gamePlayer.resources[resource] = 0
         player.resources[resource] = get
@@ -255,6 +255,8 @@ class Board(Dictable):
         self.place_road(player, location2[0], location2[1], True)
     
     def robb(self, player: Player, tile: Tile, playerToRobb: Player = None, fromDice:bool = True):
+        if tile == self.robbed_tile:
+            return False
         self.robbed_tile.unrobb()
         self.robbed_tile = tile
         tile.robb()
@@ -270,6 +272,7 @@ class Board(Dictable):
                     for gamePlayer in self.players:
                         gamePlayer.biggest_army = False
                     player.biggest_army = True
+        return True
     
     def get_players_on_tile(self, tile: Tile):
         players_id: list[int] = []

@@ -193,7 +193,6 @@ class Player(Dictable):
             'resources': self.resources,
             'army_size': self.army_size,
             'biggest_army': self.biggest_army,
-            'longest_road': self.longest_road_points,
             'dev_card_allowed': self.dev_card_allowed,
             'ports': self.ports
         }
@@ -206,9 +205,6 @@ class Player(Dictable):
         obj.resources = data['resources']
         obj.army_size = data['army_size']
         obj.biggest_army = data['biggest_army']
-        obj.longest_road = data['longest_road']
-        obj.valid_village_postions = [Point.from_dict(p) for p in data['valid_village_postions']]
-        obj.valid_roads_positions = [set(Point.from_dict(pos) for pos in s) for s in data['valid_roads_positions']]
         obj.dev_card_allowed = data['dev_card_allowed']
         obj.ports = data['ports']
         return obj

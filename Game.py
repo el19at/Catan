@@ -8,7 +8,9 @@ from Dictable import Dictable
 from Constatnt import LUMBER,BRICK, ORE, WOOL, GRAIN, \
                     VILLAGE, CITY, ROAD, DEV_CARD, DESERT, WHITE, RED, \
                     BLUE, ORANGE, KNIGHT, VICTORY_POINT, YEAR_OF_PLENTY,\
-                    MONOPOLY, ROADS_BUILD, SEA, PHASE_FIRST_ROLL, PHASE_FIRST_VILLAGE, PHASE_SECOND_VILLAGE, PHASE_INGAME
+                    MONOPOLY, ROADS_BUILD, SEA, PHASE_FIRST_ROLL,\
+                    PHASE_FIRST_VILLAGE, PHASE_SECOND_VILLAGE, PHASE_INGAME,\
+                    RESOURCE_TO_STR, RESOURCE_TO_INT
 
 COLORS = {
     SEA: pygame.Color('aqua'),
@@ -55,6 +57,10 @@ class Game():
         self.button_pos_to_card: dict[tuple:Dev_card] = {}
         self.robb_mode: bool = False
         self.tile_to_robb: Tile = None
+        self.year_of_plenty_mode: bool = False
+        self.year_of_plenty_mode_last_recsource: int = -1
+        self.monopoly_mode: bool = False
+        
         self.update()
         # for tests only
         self.board.players[self.player_id].resources[GRAIN] = 30
@@ -306,13 +312,38 @@ class Game():
             if not self.board.use_dev_card(self.board.players[self.player_id], self.button_pos_to_card[position]):
                 return
             self.robb_mode = True
-            
+            self.tile_to_robb = None
+        elif button_text == 'monopoly':
+            if not self.board.use_dev_card(self.board.players[self.player_id], self.button_pos_to_card[position]):
+                return
+            self.monopoly_mode = True
+        elif button_text == 'year of plenty':
+            if not self.board.use_dev_card(self.board.players[self.player_id], self.button_pos_to_card[position]):
+                return
+            self.year_of_plenty_mode = True
+        elif button_text in RESOURCE_TO_STR.values():
+            self.resource_clicked(button_text)
+        
         self.clicked_point = None
+    
+    def resource_clicked(self, button_text):
+        if self.monopoly_mode:
+            self.send_action('monopoly', [RESOURCE_TO_INT[button_text]])
+            self.board.use_monopoly(self.board.players[self.player_id], RESOURCE_TO_INT[button_text])
+            self.monopoly_mode = False
+        elif self.year_of_plenty_mode:
+            if self.year_of_plenty_mode_last_recsource == -1:
+                self.year_of_plenty_mode_last_recsource = RESOURCE_TO_INT[button_text]
+            else:
+                self.send_action('year of plenty', [self.year_of_plenty_mode_last_recsource, RESOURCE_TO_INT[button_text]])
+                self.board.use_year_of_plenty(self.board.players[self.player_id], self.year_of_plenty_mode_last_recsource, RESOURCE_TO_INT[button_text])
+                self.year_of_plenty_mode = False
+        self.update()
 
     def handle_click(self, pos):
         tile_pos = self.get_tile_pos_by_click(pos)
         intersection = self.get_intersection_by_click(pos)
-        if self.robb_mode:
+        if self.robb_mode and not self.tile_to_robb:
             if tile_pos == (-1, -1):
                 self.update()
                 return
@@ -321,11 +352,27 @@ class Game():
                 if self.board.robbed_tile == tile:
                     self.update()
                     return
-                self.board.robb(self.board.players[self.player_id], tile, None, False)
-                self.draw_tiles(0, 0, self.tile_size)
-                self.robb_mode = False
+                self.tile_to_robb = tile
                 self.update()
                 return
+        if self.robb_mode and self.tile_to_robb:
+            if not intersection:
+                self.update()
+                return
+            if not intersection in self.tile_to_robb.points:
+                self.update()
+                return
+            village = intersection.get_collector()
+            if village:
+                self.send_action('robb', [self.tile_to_robb, self.board.players[village.player_id]])
+                self.board.robb(self.board.players[self.player_id], self.tile_to_robb, self.board.players[village.player_id])
+            else:
+                self.send_action('robb', [self.tile_to_robb])
+                self.board.robb(self.board.players[self.player_id], self.tile_to_robb)
+            self.robb_mode = False
+            self.tile_to_robb = None
+            self.update()
+            return
         if intersection and self.build_village_mode:
             self.send_action('build village', [intersection])
             if 5 - self.board.players[self.player_id].constructions_counter[VILLAGE] == 0:
@@ -372,6 +419,7 @@ class Game():
         # TEST
         self.board.players[self.player_id].end_turn()
         #
+        self.draw_tiles(0, 0, self.tile_size)
         if self.force_build_road_mode and not self.build_road_mode:
             self.button_clicked('road')
         self.draw_dashboard()
@@ -400,7 +448,12 @@ class Game():
         pygame.quit()    
 
     def send_action(self, action: str, arguments:list = [Dictable]):
-        data = json.dumps({'action': action, 'arguments': [argument.to_dict() for argument in arguments]})
+        data = json.dumps({'action': action, 'arguments': [argument.to_dict() for argument in arguments if isinstance(argument, Dictable)]})
+        data_dict = json.loads(data)
+        for i, val in enumerate([val for val in arguments if not isinstance(val, Dictable)]):
+            data_dict[f'value{i}'] = val
+        data = json.dumps(data_dict)
+        print(data)
         if self.client:
             self.client.sendall(data)
 
@@ -419,10 +472,21 @@ class Game():
     def draw_cards_trade(self):
         self.draw_rectangle(pygame.Color('white'), pygame.Color('black'), (670, 170), 280, 256, 3)
         self.remove_cards_trade_buttons()
-        if self.trade_mode:
+        if self.year_of_plenty_mode or self.monopoly_mode:
+            self.draw_resource_picking_dashboard()
+        elif self.trade_mode:
             self.draw_trade_dashboard()
         else:
             self.draw_cards_dashboard()
+    
+    def draw_resource_picking_dashboard(self):
+        i_start, j_start = 670, 170
+        width, height = 280, 256
+        self.add_button((i_start + 5, j_start + 10),width-10, 30, 'lumber', COLORS[LUMBER])
+        self.add_button((i_start + 5, j_start + 45),width-10, 30, 'ore', COLORS[ORE])
+        self.add_button((i_start + 5, j_start + 80),width-10, 30, 'grain', COLORS[GRAIN])
+        self.add_button((i_start + 5, j_start + 115),width-10, 30, 'brick', COLORS[BRICK])
+        self.add_button((i_start + 5, j_start + 150),width-10, 30, 'wool', COLORS[WOOL])
     
     def draw_cards_dashboard(self):
         i_start, j_start = 670, 170
