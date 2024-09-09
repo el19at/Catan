@@ -250,9 +250,6 @@ class Board(Dictable):
             gamePlayer.resources[resource] = 0
         player.resources[resource] = get
     
-    def use_road_building(self, player: Player, location1: list[list[int]], location2:list[list[int]]):
-        self.place_road(player, location1[0], location1[1], True)
-        self.place_road(player, location2[0], location2[1], True)
     
     def robb(self, player: Player, tile: Tile, playerToRobb: Player = None, fromDice:bool = True):
         if tile == self.robbed_tile:

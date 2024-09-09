@@ -1,5 +1,6 @@
 from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, VILLAGE,\
-                    CITY, ROAD, DEV_CARD, VICTORY_POINT, THREE_TO_ONE
+                    CITY, ROAD, DEV_CARD, VICTORY_POINT, THREE_TO_ONE,\
+                    TAKE, GIVE
 from Construction import Construction, Dev_card
 from Point import Point
 from Dictable import Dictable
@@ -97,18 +98,6 @@ class Player(Dictable):
     def get_num_of_resources(self):
         return sum([self.resources[key] for key in [LUMBER, BRICK, ORE, WOOL, GRAIN]])
     
-    def trade_with_bank(self, resource_to_get: int, payment: int):
-        change_rate = 4
-        if self.ports[THREE_TO_ONE]:
-            change_rate = 3
-        if self.ports[resource_to_get]:
-            change_rate = 2
-        if self.resources[payment] < change_rate:
-            return False
-        self.resources[payment] -= change_rate
-        self.resources[resource_to_get] += 1
-        return True
-    
     def get_visible_points(self):
         res = 5-self.constructions_counter[VILLAGE]
         res += 2*(4-self.constructions_counter[CITY])
@@ -180,6 +169,28 @@ class Player(Dictable):
                 res.append(playerRoad)
         return res
     
+    def valid_bank_trade(self, propose:dict[bool:dict[int:int]]):
+        resource_to_change = sum(propose[TAKE].values())
+        for resource, amount in propose[GIVE].items():
+            trade_rate = 4
+            if self.ports[THREE_TO_ONE]:
+                trade_rate = 3
+            if self.ports[resource]:
+                trade_rate = 2
+            if amount % trade_rate != 0 or amount > self.resources[resource]:
+                return False
+            resource_to_change -= amount//trade_rate
+        
+        return resource_to_change == 0
+    
+    def bank_trade(self, propose):
+        if not self.valid_bank_trade(propose):
+            return False
+        for resource in propose[TAKE].keys():
+            self.resources[resource] += propose[TAKE][resource]
+            self.resources[resource] -= propose[GIVE][resource]
+        return False
+        
     def end_turn(self):
         for card in self.constructions[DEV_CARD]:
             card.allow_use()
