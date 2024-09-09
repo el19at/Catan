@@ -186,7 +186,7 @@ class Game():
     
     def intersection_logical_to_gui(self, point: Point):
         for pos, logicalPoint in self.intersections.items():
-            if point == logicalPoint:
+            if point.equal(logicalPoint):
                 return pos
           
     def intersection_coord_to_gui(self, coord):

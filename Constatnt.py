@@ -32,16 +32,22 @@ GIVE = True
 TAKE = False
 
 def convert_to_int_dict(string_dict):
-    dict_obj = ast.literal_eval(string_dict)
+    dict_obj = string_dict
+    if type(string_dict) == type(""):
+        dict_obj = ast.literal_eval(string_dict)
     int_dict = {int(key): int(value) for key, value in dict_obj.items()}
     return int_dict
 
 def convert_to_bool_dict(string_dict):
-    dict_obj = ast.literal_eval(string_dict)
+    dict_obj = string_dict
+    if type(string_dict) == type(""):
+        dict_obj = ast.literal_eval(string_dict)
     int_dict = {int(key): bool(value) for key, value in dict_obj.items()}
     return int_dict
 
 def convert_to_int_list_of_lists(string_list):
-    list_obj = ast.literal_eval(string_list)
+    list_obj = string_list
+    if type(string_list) == type(""):
+        list_obj = ast.literal_eval(string_list)
     int_list = [[int(item) for item in sublist] for sublist in list_obj]
     return int_list

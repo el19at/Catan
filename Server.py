@@ -41,7 +41,7 @@ def update_players(clients, board):
 
 
 def main():
-    players = int(argv[1]) if len(argv) > 1 else 3    
+    players = 1 #int(argv[1]) if len(argv) > 1 else 3    
     board = Board(num_of_players=players)
     clients = accept_clients(players, board.players)
     
