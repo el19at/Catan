@@ -37,6 +37,7 @@ class Game():
         else:
             self.board = Board(num_of_players, point_limit)
         self.player_id = player_id
+        self.board.turn = BLUE
         self.client: socket = None
         if client:
             self.client = client
@@ -61,9 +62,13 @@ class Game():
         self.year_of_plenty_mode_last_recsource: int = -1
         self.monopoly_mode: bool = False
         self.road_building_state: int = 0
-        self.trade_propose: dict[dict[int:int]]= {}
+        self.trade_propose: dict[bool:dict[int:int]]= {}
         self.trade_propose[GIVE] = {ORE: 0, LUMBER:0, WOOL:0, BRICK:0, GRAIN:0}
         self.trade_propose[TAKE] = {ORE: 0, LUMBER:0, WOOL:0, BRICK:0, GRAIN:0}
+        self.player_propose: dict[bool:dict[int:int]]= {}
+        self.player_propose[GIVE] = {ORE: 0, LUMBER:0, WOOL:0, BRICK:0, GRAIN:0}
+        self.player_propose[TAKE] = {ORE: 0, LUMBER:0, WOOL:0, BRICK:0, GRAIN:0}
+        
         self.button_pos_trade: dict[tuple[int]: tuple] = {}
         self.update()
         # for tests only
@@ -72,6 +77,12 @@ class Game():
         self.board.players[self.player_id].resources[LUMBER] = 30
         self.board.players[self.player_id].resources[BRICK] = 30
         self.board.players[self.player_id].resources[WOOL] = 30
+    
+    def is_my_turn(self):
+        return self.board.turn == self.player_id
+    
+    def update_player_propose(self, propose):
+        self.player_propose = propose
         
     def draw_hexagon(self, color, center, edge_length, num_to_display: int = 0, txt = ""):
         # Convert rotation angle to radians
@@ -126,11 +137,11 @@ class Game():
             x, y = 2*i+1, 2*(j+1)+r
         return self.board.get_point(x, y)
     
-    def write_text(self, center, txt: str, size: int=24):
+    def write_text(self, center, txt: str, size: int=24, color = pygame.Color('black')):
         if not pygame.font.get_init():
             pygame.font.init()
         font = pygame.font.SysFont(None, size)
-        text_surface = font.render(txt, True, pygame.Color('black'))
+        text_surface = font.render(txt, True, color)
         text_rect = text_surface.get_rect()
         text_rect.center = center
         self.main_screen.blit(text_surface, text_rect)
@@ -196,6 +207,8 @@ class Game():
         self.draw_rectangle(pygame.Color('white'), pygame.Color('black'), (660, 10), 300, 530, 3)
         
         self.write_text((720,30), 'Resources')
+        self.write_text((910, 25), 'turn:', 30)
+        self.draw_circle(COLORS[self.board.turn], (943, 25), 8)
         self.draw_rectangle(pygame.Color('white'), pygame.Color('black'), (670, 37), 280, 40, 3)
         i = 690
         for res, amount in self.board.players[self.player_id].resources.items():
@@ -294,6 +307,9 @@ class Game():
         elif button_text == 'end turn':
             self.send_action(button_text)
             self.board.players[self.player_id].end_turn()
+            # ___test___
+            self.board.turn = RED
+            #___________
         elif button_text == 'village':
             self.build_village_mode = not self.build_village_mode
             self.build_road_mode = False
@@ -336,15 +352,25 @@ class Game():
                 self.board.players[self.player_id].bank_trade(self.trade_propose)
         elif button_text == 'player trade':
             self.send_action('send propose', [self.trade_propose])
+        elif button_text in ['accept', 'refuse']:
+            self.send_action(button_text, [])
+            self.remove_button('accept')
+            self.remove_button('refuse')
+            # ___test___
+            self.board.turn = BLUE
+            #___________
         elif button_text in RESOURCE_TO_STR.values():
             self.resource_clicked(button_text, position)
         elif position in self.button_pos_trade.keys():
             self.trade_resource_clicked(position)
         self.clicked_point = None
     
+    def have_player_propose(self):
+        return sum(self.player_propose[TAKE].values()) > 0 and sum(self.player_propose[GIVE].values()) > 0
+    
     def trade_resource_clicked(self, position):
         resource = self.button_pos_trade[position]
-        flag  = position[0] < 730
+        flag  = position[0] > 800
         if self.trade_propose[flag][resource] > 0:
             self.trade_propose[flag][resource] -= 1
         
@@ -371,7 +397,14 @@ class Game():
             
         self.update()
 
+    def click_in_trade(self, pos):
+        i_s, j_s, i_e, j_e = 670, 170, 950, 426
+        return i_s<pos[0] and pos[0] < i_e and j_s<pos[1] and pos[1] < j_e
+    
     def handle_click(self, pos):
+        if not self.is_my_turn() and not self.click_in_trade(pos):
+            self.update()
+            return
         tile_pos = self.get_tile_pos_by_click(pos)
         intersection = self.get_intersection_by_click(pos)
         if self.robb_mode and not self.tile_to_robb:
@@ -458,6 +491,7 @@ class Game():
     
     def update(self):
         self.draw_tiles(0, 0, self.tile_size)
+        self.buttons = []
         if self.road_building_state > 0:
             self.build_road_mode = True
             self.force_build_road_mode = True
@@ -513,13 +547,31 @@ class Game():
     def draw_cards_trade(self):
         self.draw_rectangle(pygame.Color('white'), pygame.Color('black'), (670, 170), 280, 256, 3)
         self.remove_cards_trade_buttons()
-        if self.year_of_plenty_mode or self.monopoly_mode:
+        if not self.is_my_turn():
+            self.draw_trade_accept()
+        elif self.year_of_plenty_mode or self.monopoly_mode:
             self.draw_resource_picking_dashboard()
         elif self.trade_mode:
             self.draw_trade_dashboard()
         else:
             self.draw_cards_dashboard()
-    
+            
+    def draw_trade_accept(self):
+        i_start, j_start = 670, 170
+        width, height = 280, 256
+        self.write_text((i_start + width//2, j_start+17), 'player propose:', 40)
+        self.write_text((i_start + width//4, j_start+46), 'take', 38)
+        self.write_text((i_start + 3*width//4, j_start+46), 'give', 35)
+        j = j_start + 75
+        for key in self.player_propose[TAKE]:
+            self.write_text((i_start + width//4, j), f'{RESOURCE_TO_STR[key]}: {self.player_propose[GIVE][key]}', 30, COLORS[key])
+            self.write_text((i_start + 3*width//4, j), f'{RESOURCE_TO_STR[key]}: {self.player_propose[TAKE][key]}', 30, COLORS[key])
+            j += 25
+        if self.have_player_propose():
+            self.add_button((i_start + 8, j_start + height - 45), (width-10)//2 - 5, 30, 'accept', Color('green') if self.board.players[self.player_id].valid_player_trade(self.trade_propose) else Color('red'))
+            self.add_button((i_start + (width-10)//2 + 8, j_start + height - 45), (width-10)//2 - 5, 30, 'refuse')
+        
+
     def draw_resource_picking_dashboard(self):
         i_start, j_start = 670, 170
         width, height = 280, 256

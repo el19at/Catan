@@ -190,6 +190,12 @@ class Player(Dictable):
             self.resources[resource] += propose[TAKE][resource]
             self.resources[resource] -= propose[GIVE][resource]
         return False
+    
+    def valid_player_trade(self, propose):
+        for key in propose[TAKE].keys():
+            if propose[TAKE][key] > self.resources[key]:
+                return False
+        return True
         
     def end_turn(self):
         for card in self.constructions[DEV_CARD]:
