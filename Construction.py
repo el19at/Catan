@@ -8,14 +8,10 @@ class Construction(Dictable):
         self.coord: list[list['int']] = []
         self.price = self.init_price()
     
-    def  __eq__(self, other: object) -> bool:
+    def equal(self, other: object) -> bool:
         if isinstance(other, Construction):
             return self.player_id == other.player_id and self.type_of == other.type_of and self.coord == other.coord
         return False
-    
-    def __hash__(self):
-        # The hash is computed based on the x and y coordinates
-        return hash((self.coord))
     
     def place(self, coord: list[list['int']]):
         self.coord = deep_copy(coord)

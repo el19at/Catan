@@ -18,7 +18,7 @@ class Player(Dictable):
         self.dev_card_allowed = True
         self.ports = {LUMBER:False, BRICK:False, ORE:False, WOOL:False, GRAIN:False, THREE_TO_ONE:False}
     
-    def  __eq__(self, other: object) -> bool:
+    def  equal(self, other: object) -> bool:
         if isinstance(other, Player):
             return self.id == other.id
         return False

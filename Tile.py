@@ -7,7 +7,7 @@ class Tile(Dictable):
         self.points: list['Point'] = []
         self.robbed = False
     
-    def  __eq__(self, other: object) -> bool:
+    def  equal(self, other: object) -> bool:
         if isinstance(other, Point):
             return self.points == other.points
         return False

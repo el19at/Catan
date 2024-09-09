@@ -8,7 +8,8 @@ import random
 from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, \
                     VILLAGE, CITY, ROAD, DEV_CARD, DESERT, WHITE, RED, \
                     BLUE, ORANGE, KNIGHT, VICTORY_POINT, YEAR_OF_PLENTY,\
-                    MONOPOLY, ROADS_BUILD, SEA, TILES_NUMBERS, TILES_RESOURCES
+                    MONOPOLY, ROADS_BUILD, SEA, TILES_NUMBERS, TILES_RESOURCES,\
+                    PHASE_FIRST_VILLAGE, PHASE_SECOND_VILLAGE, PHASE_INGAME
 
 #from Game import TILES_NUMBERS, TILES_RESOURCES, DESERT, SEA, LUMBER, BRICK, ORE, WOOL, GRAIN
 class Board(Dictable):
@@ -35,6 +36,7 @@ class Board(Dictable):
         self.init_points()
         self.set_tiles_points()
         self.num_of_players = num_of_players
+        self.dice_rolled: bool = True
         self.players: dict[int:Player] = {RED: Player(RED), BLUE:Player(BLUE), ORANGE: Player(ORANGE)}
         if num_of_players == 4:
             self.players[WHITE] = Player(WHITE)
@@ -49,6 +51,7 @@ class Board(Dictable):
         +[Dev_card(YEAR_OF_PLENTY) for _ in range(2)] \
         +[Dev_card(MONOPOLY) for _ in range(2)]
         random.shuffle(self.dev_cards)
+        self.game_phase = PHASE_FIRST_VILLAGE
                     
     def set_valid_village_postions(self, tile: Tile):
         for point in tile.points:
@@ -188,6 +191,8 @@ class Board(Dictable):
         return player.place_city(city, point)
     
     def give_recources(self, dice_sum: int):
+        if self.dice_rolled:
+            return
         for tile in self.tiles:
             if tile.number != dice_sum or tile.is_robbed():
                 continue
@@ -196,18 +201,20 @@ class Board(Dictable):
                 if not collector:
                     continue
                 self.players[collector.player_id].resources[tile.recource] += (1 if collector.type_of == VILLAGE else 2)
-    
+        self.dice_rolled = True
     def buy_dev_card(self, player: Player):
         if len(self.dev_cards) < 1:
             return
         if player.buy_dev_card(self.dev_cards[0]):
             del self.dev_cards[0]
     
-    def end_turn(self, player: Player):
+    def end_turn(self):
+        player = self.players[self.turn]
         for dev_card in player.constructions[DEV_CARD]:
             dev_card.allow_use()
-        self.turn = RED + ((self.turn+1) % self.num_of_players) 
-       
+        self.turn = RED + ((self.turn + (-1 if self.game_phase == PHASE_SECOND_VILLAGE else 1)) % self.num_of_players) 
+        if self.game_phase == PHASE_INGAME:
+            self.dice_rolled = False
     def is_sea_point(self, point: Point):
         return all(x == SEA for x in [tile.resource for tile in self.get_tiles_of_point(point)])
     
@@ -284,7 +291,7 @@ class Board(Dictable):
         return [gamePlayer for gamePlayer in self.players.values() if gamePlayer != player]
     
     def win(self):
-        return max([player.get_real_points() for player in self.players.values()]) > self.point_limit
+        return max([player.get_real_points() for player in self.players.values()]) >= self.point_limit
     
     def valid_road_positions(self, player_id: int):
         player = self.players[player_id]

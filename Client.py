@@ -5,7 +5,7 @@ from Board import Board, json_to_board
 
 server_address = ('localhost', 50000)
 
-def start_client():
+def start_client() -> socket.socket:
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     client.connect(server_address)
     return client
@@ -32,4 +32,5 @@ if __name__ == "__main__":
     print(f'playerid: {player_id}')
     board = recive_board(client)
     game = Game(player_id,client=client, board=board)
+    game.set_client(client)
     game.start()

@@ -9,7 +9,6 @@ from Constatnt import LUMBER,BRICK, ORE, WOOL, GRAIN, \
                     VILLAGE, CITY, ROAD, DEV_CARD, DESERT, WHITE, RED, \
                     BLUE, ORANGE, KNIGHT, VICTORY_POINT, YEAR_OF_PLENTY,\
                     MONOPOLY, ROADS_BUILD, SEA, PHASE_FIRST_ROLL,\
-                    PHASE_FIRST_VILLAGE, PHASE_SECOND_VILLAGE, PHASE_INGAME,\
                     RESOURCE_TO_STR, RESOURCE_TO_INT, GIVE, TAKE
 
 COLORS = {
@@ -37,7 +36,6 @@ class Game():
         else:
             self.board = Board(num_of_players, point_limit)
         self.player_id = player_id
-        self.board.turn = BLUE
         self.client: socket = None
         if client:
             self.client = client
@@ -52,7 +50,6 @@ class Game():
         self.build_road_mode = False
         self.build_city_mode = False
         self.force_build_road_mode = False
-        self.game_phase = PHASE_FIRST_ROLL
         self.clicked_point: Point = None
         self.trade_mode = True
         self.button_pos_to_card: dict[tuple:Dev_card] = {}
@@ -68,15 +65,13 @@ class Game():
         self.player_propose: dict[bool:dict[int:int]]= {}
         self.player_propose[GIVE] = {ORE: 0, LUMBER:0, WOOL:0, BRICK:0, GRAIN:0}
         self.player_propose[TAKE] = {ORE: 0, LUMBER:0, WOOL:0, BRICK:0, GRAIN:0}
-        
         self.button_pos_trade: dict[tuple[int]: tuple] = {}
+        self.board.turn = self.player_id
+        self.client = None
         self.update()
-        # for tests only
-        self.board.players[self.player_id].resources[GRAIN] = 30
-        self.board.players[self.player_id].resources[ORE] = 30
-        self.board.players[self.player_id].resources[LUMBER] = 30
-        self.board.players[self.player_id].resources[BRICK] = 30
-        self.board.players[self.player_id].resources[WOOL] = 30
+    
+    def set_client(self, socket):
+        self.client = socket
     
     def is_my_turn(self):
         return self.board.turn == self.player_id
@@ -310,9 +305,6 @@ class Game():
         elif button_text == 'end turn':
             self.send_action(button_text)
             self.board.players[self.player_id].end_turn()
-            # ___test___
-            self.board.turn = RED
-            #___________
         elif button_text == 'village':
             self.build_village_mode = not self.build_village_mode
             self.build_road_mode = False
@@ -352,16 +344,12 @@ class Game():
         elif button_text == 'bank trade':
             if self.board.players[self.player_id].valid_bank_trade(self.trade_propose):
                 self.send_action('bank trade', [self.trade_propose])
-                self.board.players[self.player_id].bank_trade(self.trade_propose)
         elif button_text == 'player trade':
             self.send_action('send propose', [self.trade_propose])
         elif button_text in ['accept', 'refuse']:
             self.send_action(button_text, [])
             self.remove_button('accept')
             self.remove_button('refuse')
-            # ___test___
-            self.board.turn = BLUE
-            #___________
         elif button_text in RESOURCE_TO_STR.values():
             self.resource_clicked(button_text, position)
         elif position in self.button_pos_trade.keys():
@@ -531,9 +519,9 @@ class Game():
         for i, val in enumerate([val for val in arguments if not isinstance(val, Dictable)]):
             data_dict[f'value{i}'] = val
         data = json.dumps(data_dict)
-        print(data)
         if self.client:
             self.client.sendall(data)
+            self.update_board(recive_board(self.client))
 
     def draw_villages(self):
         for id, player in self.board.players.items():
@@ -637,6 +625,18 @@ class Game():
     
 def distance(pos1, pos2):
     return ((pos1[0]-pos2[0])**2+(pos1[1]-pos2[1])**2)**0.5
+
+def recive_board(client):
+    # Buffer to hold the incoming data
+    buffer = ""
+    while True:
+        # Continuously receive data in chunks of 4096 bytes
+        data = client.recv(4096).decode('utf-8')
+        if not data:
+            break
+        buffer += data
+    json_data = json.loads(buffer)
+    return json_to_board(json_data)
 
 def main():
     game = Game(player_id=RED+1)

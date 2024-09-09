@@ -8,12 +8,6 @@ class Point(Dictable):
         self.constructions: list['Construction'] = []
         self.vacant = True
     
-    """
-    def  __eq__(self, other: object) -> bool:
-        if isinstance(other, Point):
-            return self.row == other.row and self.column == other.column
-        return False
-    """
     def equal(self, other):
         if isinstance(other, Point):
             return self.row == other.row and self.column == other.column
