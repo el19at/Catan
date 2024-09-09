@@ -1,4 +1,4 @@
-from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, VILLAGE, CITY, ROAD, DEV_CARD, KNIGHT, VICTORY_POINT, MONOPOLY, ROADS_BUILD, YEAR_OF_PLENTY
+from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, VILLAGE, CITY, ROAD, DEV_CARD, KNIGHT, VICTORY_POINT, MONOPOLY, ROADS_BUILD, YEAR_OF_PLENTY, convert_to_int_dict, convert_to_int_list_of_lists
 from Dictable import Dictable
 
 class Construction(Dictable):
@@ -38,9 +38,9 @@ class Construction(Dictable):
 
     @classmethod
     def from_dict(cls, data):
-        obj = cls(data['type_of'], data['player_id'])
-        obj.coord = data['coord']
-        obj.price = data['price']
+        obj = cls(int(data['type_of']), int(data['player_id']))
+        obj.coord = convert_to_int_list_of_lists(data['coord'])
+        obj.price = convert_to_int_dict(data['price'])
         return obj
 
 def deep_copy(l):
@@ -92,7 +92,7 @@ class Dev_card(Construction):
             return 'roads build'
     @classmethod
     def from_dict(cls, data):
-        obj = cls(data['action'])
-        obj.is_allowed = data['is_allowed']
-        obj.used = data['used']
+        obj = cls(int(data['action']))
+        obj.is_allowed = bool(data['is_allowed'])
+        obj.used = bool(data['used'])
         return obj

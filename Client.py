@@ -31,5 +31,5 @@ if __name__ == "__main__":
     player_id = recive_player_id(client)
     print(f'playerid: {player_id}')
     board = recive_board(client)
-    game = Game(board, client=client, player_id=player_id)
+    game = Game(player_id,client=client, board=board)
     game.start()

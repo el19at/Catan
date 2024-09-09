@@ -1,6 +1,6 @@
 from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, VILLAGE,\
                     CITY, ROAD, DEV_CARD, VICTORY_POINT, THREE_TO_ONE,\
-                    TAKE, GIVE
+                    TAKE, GIVE, convert_to_int_dict, convert_to_bool_dict
 from Construction import Construction, Dev_card
 from Point import Point
 from Dictable import Dictable
@@ -216,14 +216,14 @@ class Player(Dictable):
     
     @classmethod
     def from_dict(cls, data):
-        obj = cls(data['id'])
+        obj = cls(int(data['id']))
         obj.constructions = {int(k): [Construction.from_dict(c) for c in v] for k, v in data['constructions'].items()}
-        obj.constructions_counter = data['constructions_counter']
-        obj.resources = data['resources']
-        obj.army_size = data['army_size']
-        obj.biggest_army = data['biggest_army']
-        obj.dev_card_allowed = data['dev_card_allowed']
-        obj.ports = data['ports']
+        obj.constructions_counter = convert_to_int_dict(data['constructions_counter'])
+        obj.resources = convert_to_int_dict(data['resources'])
+        obj.army_size = int(data['army_size'])
+        obj.biggest_army = bool(data['biggest_army'])
+        obj.dev_card_allowed = bool(data['dev_card_allowed'])
+        obj.ports = convert_to_bool_dict(data['ports'])
         return obj
     
 def points_to_coords(points: list['Point']):

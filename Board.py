@@ -324,8 +324,8 @@ class Board(Dictable):
     
     @classmethod
     def from_dict(cls, data):
-        board = cls(data['num_of_players'], data['point_limit'])
-        board.turn = data['turn']
+        board = cls(int(data['num_of_players']), int(data['point_limit']))
+        board.turn = int(data['turn'])
         board.tiles = [[Tile.from_dict(tile) for tile in row] for row in data['tiles']]
         board.robbed_tile = Tile.from_dict(data['robbed_tile']) if data['robbed_tile'] else None
         board.points = {tuple(map(int, k.strip('()').split(', '))): Point.from_dict(v) for k, v in data['points'].items()}

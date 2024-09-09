@@ -26,7 +26,7 @@ class Tile(Dictable):
     
     @classmethod
     def from_dict(cls, data):
-        obj = cls(data['resource'], data['number'])
+        obj = cls(int(data['resource']), int(data['number']))
         obj.points = [Point.from_dict(p) for p in data['points']]
-        obj.robbed = data['robbed']
+        obj.robbed = bool(data['robbed'])
         return obj

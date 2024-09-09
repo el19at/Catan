@@ -38,6 +38,6 @@ class Point(Dictable):
     
     @classmethod
     def from_dict(cls, data):
-        obj = cls(data['row'], data['column'])
+        obj = cls(int(data['row']), int(data['column']))
         obj.constructions = [Construction.from_dict(c) for c in data['constructions']]
         return obj

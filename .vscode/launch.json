@@ -4,7 +4,7 @@
             "name": "Python Debugger: Python File",
             "type": "debugpy",
             "request": "launch",
-            "program": "Game.py"
+            "program": "Client.py"
         }
     ]
 }

@@ -1,3 +1,4 @@
+import ast
 DESERT = 0
 SEA = 1
 LUMBER = 2
@@ -29,3 +30,18 @@ RESOURCE_TO_STR = {LUMBER:'lumber', BRICK:'brick', ORE:'ore', WOOL:'wool', GRAIN
 RESOURCE_TO_INT = {'lumber': LUMBER, 'brick':BRICK, 'ore':ORE, 'wool':WOOL, 'grain':GRAIN}
 GIVE = True
 TAKE = False
+
+def convert_to_int_dict(string_dict):
+    dict_obj = ast.literal_eval(string_dict)
+    int_dict = {int(key): int(value) for key, value in dict_obj.items()}
+    return int_dict
+
+def convert_to_bool_dict(string_dict):
+    dict_obj = ast.literal_eval(string_dict)
+    int_dict = {int(key): bool(value) for key, value in dict_obj.items()}
+    return int_dict
+
+def convert_to_int_list_of_lists(string_list):
+    list_obj = ast.literal_eval(string_list)
+    int_list = [[int(item) for item in sublist] for sublist in list_obj]
+    return int_list

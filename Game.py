@@ -83,6 +83,9 @@ class Game():
     
     def update_player_propose(self, propose):
         self.player_propose = propose
+    
+    def update_board(self, board):
+        self.board = board
         
     def draw_hexagon(self, color, center, edge_length, num_to_display: int = 0, txt = ""):
         # Convert rotation angle to radians

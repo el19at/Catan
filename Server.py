@@ -39,43 +39,6 @@ def update_players(clients, board):
     for client in clients:
         threading.Thread(target=update_player, args=(client, board,)).start()
 
-def all_start_game(clients):
-    player_nums = {}
-    lock = threading.Lock()
-    r = [_ for _ in range(len(clients))]
-
-    def handle_roll(client: socket.socket):
-        try:
-            buffer = ""
-            while True:
-                data = client[0].recv(1024).decode('utf-8')
-                if not data:
-                    break
-                buffer += data
-            
-            with lock:
-                num = random.choice(r)
-                player_nums[client[1].id] = num
-                r.remove(num)
-                print(f"Player {client[1].id} rolled: {player_nums[client[1].id]}")
-
-        finally:
-            client[0].close()
-
-    threads = []
-    for client in clients:
-        thread = threading.Thread(target=handle_roll, args=(client,))
-        thread.start()
-        threads.append(thread)
-
-    for thread in threads:
-        thread.join()
-
-    for player_id, value in player_nums:
-        if value == len(clients) - 1:
-            return player_id
-    
-    return -1
 
 def main():
     players = int(argv[1]) if len(argv) > 1 else 3    
@@ -87,9 +50,8 @@ def main():
     
     update_players(clients.keys(), board)
     
-    # Wait until all players have rolled their dice
-    board.turn = RED#all_start_game(clients)
-    #update_players(clients.keys(), board)
+    board.turn = random.choice(list(clients.keys()))
+    update_players(clients.keys(), board)
     # Proceed with game logic using the collected dice rolls
 
 if __name__ == '__main__':
