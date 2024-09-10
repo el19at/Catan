@@ -1,15 +1,16 @@
 import socket
+import threading
 import pygame
 from pygame import Color
 from Board import Board, Point, json_to_board, Player, Dev_card, Tile
 import math
 import json
-from Dictable import Dictable
+from Indexable import Indexable
 from Constatnt import LUMBER,BRICK, ORE, WOOL, GRAIN, \
                     VILLAGE, CITY, ROAD, DEV_CARD, DESERT, WHITE, RED, \
                     BLUE, ORANGE, KNIGHT, VICTORY_POINT, YEAR_OF_PLENTY,\
                     MONOPOLY, ROADS_BUILD, SEA, PHASE_FIRST_ROLL,\
-                    RESOURCE_TO_STR, RESOURCE_TO_INT, GIVE, TAKE
+                    RESOURCE_TO_STR, RESOURCE_TO_INT, GIVE, TAKE, convert_to_int_dict, EMPTY_PROPOSE
 
 COLORS = {
     SEA: pygame.Color('aqua'),
@@ -68,6 +69,7 @@ class Game():
         self.button_pos_trade: dict[tuple[int]: tuple] = {}
         self.board.turn = self.player_id
         self.client = None
+        self.lock = threading.Lock()
         self.update()
     
     def set_client(self, socket):
@@ -78,9 +80,11 @@ class Game():
     
     def update_player_propose(self, propose):
         self.player_propose = propose
-    
+        self.update()
+        
     def update_board(self, board):
         self.board = board
+        self.update()
         
     def draw_hexagon(self, color, center, edge_length, num_to_display: int = 0, txt = ""):
         # Convert rotation angle to radians
@@ -133,7 +137,7 @@ class Game():
             x, y = i*2, 2*j+1+r 
         if index == 5:
             x, y = 2*i+1, 2*(j+1)+r
-        return self.board.get_point(x, y)
+        return self.board.get_point_board(x, y)
     
     def write_text(self, center, txt: str, size: int=24, color = pygame.Color('black')):
         if not pygame.font.get_init():
@@ -514,15 +518,68 @@ class Game():
         pygame.quit()    
 
     def send_action(self, action: str, arguments:list = []):
-        data = json.dumps({'action': action, 'arguments': [argument.to_dict() for argument in arguments if isinstance(argument, Dictable)]})
+        data = json.dumps({'action': action, 'arguments': [argument.to_index() for argument in arguments if isinstance(argument, Indexable)]})
         data_dict = json.loads(data)
-        for i, val in enumerate([val for val in arguments if not isinstance(val, Dictable)]):
+        for i, val in enumerate([val for val in arguments if not isinstance(val, Indexable)]):
             data_dict[f'value{i}'] = val
         data = json.dumps(data_dict)
         if self.client:
             self.client.sendall(data)
-            self.update_board(recive_board(self.client))
+            self.wait_for_server = True
+            self.listen_to_server()
 
+    def listen_to_server(self):
+        while True:
+            data = self.recive_data()
+            data_dict = json.loads(data)
+            if "propose" == data[:7]:
+                new_propose = convert_to_int_dict(data_dict["propose"])
+                self.update_player_propose(new_propose)
+                with self.lock:  # Lock to safely update the current proposal
+                    self.player_propose = new_propose
+                threading.Thread(target=self.process_proposal).start()
+            else:
+                self.update_board(self.dict_to_board(data_dict))
+                
+    def process_proposal(self):
+        while True:
+            with self.lock:
+                if self.player_propose == EMPTY_PROPOSE:
+                    break
+                self.accept_or_refuse()
+                break
+    
+    def accept_or_refuse(self):
+        running = True
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    button_text = 'not found'
+                    for button in self.buttons:
+                        if self.click_in_button(button, event.pos):
+                            button_text = button[3]
+                            break
+                    if button_text in ['accept', 'refuse']:
+                        self.handle_click(event.pos)
+                        running = False
+        
+    def dict_to_board(data):
+        json_data = json.loads(data)
+        return json_to_board(json_data)
+
+    def recive_data(self):
+         # Buffer to hold the incoming data
+        buffer = ""
+        while True:
+            # Continuously receive data in chunks of 4096 bytes
+            data = self.client.recv(4096).decode('utf-8')
+            if not data:
+                break
+            buffer += data
+        return buffer
+    
     def draw_villages(self):
         for id, player in self.board.players.items():
             for village in player.constructions[VILLAGE]:
@@ -625,18 +682,6 @@ class Game():
     
 def distance(pos1, pos2):
     return ((pos1[0]-pos2[0])**2+(pos1[1]-pos2[1])**2)**0.5
-
-def recive_board(client):
-    # Buffer to hold the incoming data
-    buffer = ""
-    while True:
-        # Continuously receive data in chunks of 4096 bytes
-        data = client.recv(4096).decode('utf-8')
-        if not data:
-            break
-        buffer += data
-    json_data = json.loads(buffer)
-    return json_to_board(json_data)
 
 def main():
     game = Game(player_id=RED+1)

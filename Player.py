@@ -3,8 +3,8 @@ from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, VILLAGE,\
                     TAKE, GIVE, convert_to_int_dict, convert_to_bool_dict
 from Construction import Construction, Dev_card
 from Point import Point
-from Dictable import Dictable
-class Player(Dictable):
+from Indexable import Indexable
+class Player(Indexable):
     def __init__(self, id) -> None:
         self.id = id
         self.constructions: dict[int:list['Construction']] = {}
@@ -24,11 +24,10 @@ class Player(Dictable):
         return False
     
     def init_constructions(self):
-        self.constructions[ROAD] = [Construction(ROAD, self.id) for _ in range(15)]
-        self.constructions[VILLAGE] = [Construction(VILLAGE, self.id) for _ in range(5)]
-        self.constructions[CITY] = [Construction(CITY, self.id) for _ in range(4)]
-        self.constructions[DEV_CARD] = []
-        self.constructions_counter = {ROAD:15, VILLAGE:5, CITY:4, DEV_CARD:0}
+        self.constructions[ROAD] = [Construction(ROAD, self.id, i) for i in range(15)]
+        self.constructions[VILLAGE] = [Construction(VILLAGE, self.id, i) for i in range(5)]
+        self.constructions[CITY] = [Construction(CITY, self.id, i) for i in range(4)]
+        self.constructions_counter = {ROAD:15, VILLAGE:5, CITY:4}
     
     def init_resources(self):
         self.resources = {LUMBER:0, BRICK:0, ORE:0, WOOL:0, GRAIN:0}
@@ -84,22 +83,21 @@ class Player(Dictable):
                 return False
         for resource, amount in dev_card.price.items():
             self.resources[resource] -= dev_card.price[resource]
-        self.constructions[DEV_CARD].append(dev_card)
+        dev_card.player_id = self.id
         self.constructions_counter[DEV_CARD] += 1
         return True
     
-    def accept_propse(self, propse: list[dict[int:int]]):
-        give = propse[0]
-        take = propse[1]
-        for resource in give.keys():
-            if self.resources[resource] < give[resource]:
-                return False
-        for resource in give.keys():
-            self.resources[resource] -= give[resource]
-        for resource in take.keys():
-            self.resources[resource] += take[resource]
+    def make_trade(self, other, propose: dict[bool:dict[int:int]]):
+        other_propose = {TAKE:propose[GIVE], GIVE:propose[TAKE]}
+        if not (self.valid_player_trade(propose) and other.self.valid_player_trade(other_propose)):
+            return False
+        for key in propose.keys():
+            self.resources[key] += propose[TAKE][key]
+            other.resources[key] -= propose[TAKE][key]
+            self.resources[GIVE] -= propose[GIVE][key]
+            other.resources[GIVE] += propose[GIVE][key]
         return True
-    
+            
     def get_num_of_resources(self):
         return sum([self.resources[key] for key in [LUMBER, BRICK, ORE, WOOL, GRAIN]])
     
@@ -111,9 +109,6 @@ class Player(Dictable):
         if self.longest_road_points:
             res += 2
         return res
-    
-    def get_real_points(self):
-        return self.get_visible_points() + len([card for card in self.constructions[DEV_CARD] if card.action == VICTORY_POINT])
     
     def drop_resource(self, resource: int):
         if self.resources[resource] > 0:
@@ -201,36 +196,43 @@ class Player(Dictable):
             if propose[TAKE][key] > self.resources[key]:
                 return False
         return True
-        
+
     def end_turn(self):
-        for card in self.constructions[DEV_CARD]:
-            card.allow_use()
         self.dev_card_allowed = True
+    
+    def to_index(self):
+        return {
+            'type': 'Player',
+            'id': self.id
+        }
     
     def to_dict(self):
         return {
             'id': self.id,
-            'constructions': {k: [c.to_dict() for c in v] for k, v in self.constructions.items()},
+            'constructions': {k: [construction.to_dict() for construction in v] for k, v in self.constructions.items()},
             'constructions_counter': self.constructions_counter,
             'resources': self.resources,
             'army_size': self.army_size,
             'biggest_army': self.biggest_army,
+            'longest_road_points': self.longest_road_points,
             'dev_card_allowed': self.dev_card_allowed,
             'ports': self.ports
         }
-    
+
     @classmethod
-    def from_dict(cls, data):
-        obj = cls(int(data['id']))
-        obj.constructions = {int(k): [Construction.from_dict(c) for c in v] for k, v in data['constructions'].items()}
-        obj.constructions_counter = convert_to_int_dict(data['constructions_counter'])
-        obj.resources = convert_to_int_dict(data['resources'])
-        obj.army_size = int(data['army_size'])
-        obj.biggest_army = bool(data['biggest_army'])
-        obj.dev_card_allowed = bool(data['dev_card_allowed'])
-        obj.ports = convert_to_bool_dict(data['ports'])
-        return obj
-    
+    def from_dict(cls, data: dict) -> 'Player':
+        player = cls(int(data['id']))
+        player.constructions = {int(k): [Construction.from_dict(c) for c in v] for k, v in data['constructions'].items()}
+        player.constructions_counter = convert_to_int_dict(data['constructions_counter'])
+        player.resources = int(data['resources'])
+        player.army_size = int(data['army_size'])
+        player.biggest_army = bool(data['biggest_army'])
+        player.longest_road_points = bool(data['longest_road_points'])
+        player.dev_card_allowed = bool(data['dev_card_allowed'])
+        player.ports = {int(k):bool(v) for k,v in data['ports'].items()}
+        return player
+        
+        
 def points_to_coords(points: list['Point']):
     return [[point.row, point.column] for point in points]
 
@@ -239,3 +241,8 @@ def neib_coord(l):
     if i % 2 == 0:
         return [tuple([i-1, j]), tuple([i+1,j-1]), tuple([i+1, j+1])]
     return [tuple([i-1, j-1]), tuple([i-1, j+1]), tuple([i+1, j])]
+
+def to_dict(self):
+    return {
+        
+    }

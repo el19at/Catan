@@ -30,6 +30,7 @@ RESOURCE_TO_STR = {LUMBER:'lumber', BRICK:'brick', ORE:'ore', WOOL:'wool', GRAIN
 RESOURCE_TO_INT = {'lumber': LUMBER, 'brick':BRICK, 'ore':ORE, 'wool':WOOL, 'grain':GRAIN}
 GIVE = True
 TAKE = False
+EMPTY_PROPOSE = {GIVE:{ORE: 0, LUMBER:0, WOOL:0, BRICK:0, GRAIN:0}, TAKE:{ORE: 0, LUMBER:0, WOOL:0, BRICK:0, GRAIN:0}}
 
 def convert_to_int_dict(string_dict):
     dict_obj = string_dict

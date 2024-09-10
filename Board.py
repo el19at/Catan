@@ -1,5 +1,5 @@
 import json
-from Dictable import Dictable
+from Indexable import Indexable
 from Tile import Tile
 from Point import Point
 from Player import Player, points_to_coords
@@ -12,7 +12,7 @@ from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, \
                     PHASE_FIRST_VILLAGE, PHASE_SECOND_VILLAGE, PHASE_INGAME
 
 #from Game import TILES_NUMBERS, TILES_RESOURCES, DESERT, SEA, LUMBER, BRICK, ORE, WOOL, GRAIN
-class Board(Dictable):
+class Board(Indexable):
     def __init__(self, num_of_players: int = 3, point_limit: int = 10):
         self.turn = -1
         self.point_limit = point_limit
@@ -31,6 +31,9 @@ class Board(Dictable):
         self.init_row(self.tiles[0], numbers[12:], resources[12:], True)
         self.swap_desert()
         self.sea_padding(7)
+        for i, row in enumerate(self.tiles):
+            for j, tile in enumerate(row):
+                tile.set_index(i, j)
         self.ROWS, self.COLUMNS = 2*(len(self.tiles)+1), 2*len(self.tiles[0])
         self.points = {}
         self.init_points()
@@ -51,6 +54,9 @@ class Board(Dictable):
         +[Dev_card(YEAR_OF_PLENTY) for _ in range(2)] \
         +[Dev_card(MONOPOLY) for _ in range(2)]
         random.shuffle(self.dev_cards)
+        for i, card in enumerate(self.dev_card_index):
+            card.i = i
+        self.dev_card_index = 0
         self.game_phase = PHASE_FIRST_VILLAGE
                     
     def set_valid_village_postions(self, tile: Tile):
@@ -113,19 +119,19 @@ class Board(Dictable):
             for j in range(self.COLUMNS):
                 self.points[f'({i}, {j})'] = Point(i, j)
     
-    def get_point(self, row, column) -> Point:
+    def get_point_board(self, row, column) -> Point:
         return self.points[f'({row}, {column})'] if f'({row}, {column})' in self.points.keys() else None
         
     def set_tiles_points(self):
         for i, row in enumerate(self.tiles):
             r = i % 2
             for j, tile in enumerate(row):
-                tile.points = [self.get_point(i*2, 2*j+1+r),
-                               self.get_point(2*i+1, 2*(j+1)+r),
-                               self.get_point(2*(i+1), 2*(j+1)+r),
-                               self.get_point(i*2+3, 2*j+1+r),
-                               self.get_point(2*(i+1), 2*j+r),
-                               self.get_point(2*i +1, 2*j+r)]
+                tile.points = [self.get_point_board(i*2, 2*j+1+r),
+                               self.get_point_board(2*i+1, 2*(j+1)+r),
+                               self.get_point_board(2*(i+1), 2*(j+1)+r),
+                               self.get_point_board(i*2+3, 2*j+1+r),
+                               self.get_point_board(2*(i+1), 2*j+r),
+                               self.get_point_board(2*i +1, 2*j+r)]
     
     def get_tiles_of_point(self, point: Point) -> list['Tile']:
         res = []
@@ -157,7 +163,7 @@ class Board(Dictable):
         point.vacant = False
         for coord in point.get_neib_points_coord():
             i, j = coord
-            self.get_point(i, j).vacant = False
+            self.get_point_board(i, j).vacant = False
         return True
     
     def place_road(self, player: Player, point1: Point, point2: Point, freeRoad: bool):
@@ -202,19 +208,26 @@ class Board(Dictable):
                     continue
                 self.players[collector.player_id].resources[tile.recource] += (1 if collector.type_of == VILLAGE else 2)
         self.dice_rolled = True
-    def buy_dev_card(self, player: Player):
-        if len(self.dev_cards) < 1:
+        
+    def buy_dev_card(self):
+        player: Player = self.players[self.turn]
+        if self.dev_card_index >= len(self.dev_cards):
             return
-        if player.buy_dev_card(self.dev_cards[0]):
-            del self.dev_cards[0]
+        if player.buy_dev_card(self.dev_cards[self.dev_card_index]):
+            self.dev_card_index += 1
+    
+    def get_real_points(self, player: Player):
+        return player.get_visible_points() + len([card for card in self.dev_cards if card.action == VICTORY_POINT and card.player_id==player.id])
     
     def end_turn(self):
-        player = self.players[self.turn]
-        for dev_card in player.constructions[DEV_CARD]:
+        player: Player = self.players[self.turn]
+        player.end_turn()
+        for dev_card in self.dev_cards[:self.dev_card_index]:
             dev_card.allow_use()
         self.turn = RED + ((self.turn + (-1 if self.game_phase == PHASE_SECOND_VILLAGE else 1)) % self.num_of_players) 
         if self.game_phase == PHASE_INGAME:
             self.dice_rolled = False
+            
     def is_sea_point(self, point: Point):
         return all(x == SEA for x in [tile.resource for tile in self.get_tiles_of_point(point)])
     
@@ -239,14 +252,15 @@ class Board(Dictable):
         return res
     
     def use_dev_card(self, player: Player, card: Dev_card):
-        if card.action == VICTORY_POINT:
+        if not card or card.action == VICTORY_POINT:
             return False
         if not (player.dev_card_allowed and card.allow_use and not card.used):
             return False
         card.set_used()
         return True
     
-    def use_year_of_plenty(self, player: Player, first_resource: int, second_resource: int):
+    def use_year_of_plenty(self, first_resource: int, second_resource: int):
+        player = self.players[self.turn]
         player.resources[first_resource] += 1
         player.resources[second_resource] += 1
     
@@ -258,8 +272,9 @@ class Board(Dictable):
         player.resources[resource] = get
     
     
-    def robb(self, player: Player, tile: Tile, playerToRobb: Player = None, fromDice:bool = True):
-        if tile == self.robbed_tile:
+    def robb(self, tile: Tile, playerToRobb: Player = None, fromDice:bool = True):
+        player = self.players[self.turn]
+        if tile.eq(self.robbed_tile):
             return False
         self.robbed_tile.unrobb()
         self.robbed_tile = tile
@@ -301,9 +316,9 @@ class Board(Dictable):
                 continue
             for construction in constructionsList:
                 for coord in construction.coord:
-                    point = self.get_point(coord[0], coord[1])
+                    point = self.get_point_board(coord[0], coord[1])
                     for neib_coord in point.get_neib_points_coord():
-                        toAdd = set([point, self.get_point(neib_coord[0], neib_coord[1])])
+                        toAdd = set([point, self.get_point_board(neib_coord[0], neib_coord[1])])
                         if not toAdd in res and toAdd in self.road_locations:
                             res.append(toAdd)
         return res
@@ -314,7 +329,35 @@ class Board(Dictable):
             return [point for point in self.village_locations if point.vacant]
         return [point for point in self.village_locations if point.vacant and point.have_road(player.id)]
     
+    def get_construction(self, index)->Construction:
+        type_of = index['type_of']
+        player_id = index['player_id']
+        i = index['i']
+        return self.players[player_id][type_of][i]
     
+    def get_player(self, index) -> Player:
+        return self.players[index['id']]
+    
+    def get_point(self, index) -> Point:
+        i = index['row']
+        j = index['column']
+        return self.get_point_board((i, j))
+    
+    def get_tile(self, index) -> Tile:
+        i = index['row']
+        j = index['column']
+        return self.tiles[i][j]
+    
+    def get_object(self, index):
+        if index['type'] == 'Construction':
+            return self.get_construction(index)
+        if index['type'] == 'Player':
+            return self.get_player(index)
+        if index['type'] == 'Point':
+            return self.get_point(index)
+        if index['type'] == 'Tile':
+            return self.get_tile(index)
+
     def to_dict(self):
         return {
             'turn': self.turn,

@@ -1,7 +1,7 @@
 import Construction
 from Construction import Construction, VILLAGE, CITY, ROAD
-from Dictable import Dictable
-class Point(Dictable):
+from Indexable import Indexable
+class Point(Indexable):
     def __init__(self, row: int, column: int) -> None:
         self.row: int = row
         self.column: int = column
@@ -12,8 +12,11 @@ class Point(Dictable):
         if isinstance(other, Point):
             return self.row == other.row and self.column == other.column
         return False
+    
     def build_on_point(self, construction: Construction):
         self.constructions.append(construction)
+        if construction.type_of != ROAD:
+            self.vacant + False
     
     def get_neib_points_coord(self):
         i, j = self.row, self.column
@@ -33,15 +36,24 @@ class Point(Dictable):
                 return True
         return False
     
+    def to_index(self):
+        return {
+            'type': 'Point',
+            'row': self.row,
+            'column': self.column
+        }
+        
     def to_dict(self):
         return {
             'row': self.row,
             'column': self.column,
-            'constructions': [c.to_dict() for c in self.constructions]
+            'constructions': [construction.to_dict() for construction in self.constructions], 
+            'vaccant': self.vacant
         }
     
     @classmethod
-    def from_dict(cls, data):
-        obj = cls(int(data['row']), int(data['column']))
-        obj.constructions = [Construction.from_dict(c) for c in data['constructions']]
-        return obj
+    def from_dict(cls, data: dict) -> 'Point':
+        point = cls(int(data['row']), int(data['column']))
+        point.constructions = [Construction.from_dict(c) for c in data['constructions']]
+        point.vacant = bool(data['vacant'])
+        return point
