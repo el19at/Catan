@@ -160,20 +160,20 @@ def main():
                     board.turn = ender
                 if board.game_phase == PHASE_SECOND_VILLAGE and starter == board.turn():
                     board.game_phase = PHASE_INGAME
-            if action == 'buy card':
+            elif action == 'buy card':
                 board.buy_dev_card()
-                update_players(clients, board)
-            if action == 'bank trade':
+                
+            elif action == 'bank trade':
                 turn_player.bank_trade(convert_to_bool_dict(arguments['propse']))
-                update_players(clients, board)
-            if action == 'player trade':
+                
+            elif action == 'player trade':
                 send_player_propose(clients, board.turn, convert_to_bool_dict(arguments['propse']))
                 socket = wait_for_player_response(clients, board.turn)
                 send_player_propose(clients, board.turn, EMPTY_PROPOSE)
                 if socket in clients.keys():
                     turn_player.make_trade(clients[socket], convert_to_bool_dict(arguments['propse']))
-                update_players(clients, board)
-            if action == 'roll dice':
+                
+            elif action == 'roll dice':
                 dices = board.roll_dices()
                 if dices == 7:
                     send_seven(clients)
@@ -181,34 +181,34 @@ def main():
                     send_robb(turn_socket)
                 else:
                     board.give_recources(dices)
-                update_players(clients, board)
-            if action == 'monopoly':
+                
+            elif action == 'monopoly':
                 resource = int(arguments['resource'])
                 card = board.get_object(arguments['card'])
                 if card and board.use_dev_card(clients[turn_socket], card):
                     board.use_monopoly(resource)
-                update_players(clients, board)
-            if action == 'year of plenty':
+                
+            elif action == 'year of plenty':
                 resource = [int(arguments['first resource']), int(arguments['second resource'])]
                 card = board.get_object(arguments['card'])
                 if card and board.use_dev_card(clients[turn_socket], card):
                     board.use_year_of_plenty(resource[0], resource[1])
-                update_players(clients, board)
-            if action == 'build village':
+                
+            elif action == 'build village':
                 point:Point = board.get_object(arguments['point']) 
                 board.place_village(point, board.game_phase == PHASE_FIRST_VILLAGE, board.game_phase == PHASE_SECOND_VILLAGE)
-                update_players(clients, board)
-            if action == 'build road':
+                
+            elif action == 'build road':
                 point1: Point = board.get_object(arguments['point1'])
                 point2: Point = board.get_object(arguments['point2'])
                 board.place_road(point1, point2, board.game_phase != PHASE_INGAME)
-                update_players(clients, board)
-            if action == 'build city':
+                
+            elif action == 'build city':
                 point:Point = board.get_object(arguments['point'])
                 board.place_city(point)
-                update_players(clients, board)
+                
 
-            if action == 'robb':
+            elif action == 'robb':
                 tile: Tile = board.get_object(arguments['tile'])
                 player: Player = board.get_object(arguments['player']) if 'player' in arguments.keys() else None
                 card: Dev_card = board.get_object(arguments['card']) if 'player' in arguments.keys() else None
@@ -219,16 +219,8 @@ def main():
                     board.robb(tile, player, fromDice=False)
                 else:
                     board.robb(tile, player, fromDice=True)
-                update_players(clients, board)
                 
-                
-            
-        
+        update_players(clients, board)
     
-    
-    update_players(clients, board)
-    
-    # Proceed with game logic using the collected dice rolls
-
 if __name__ == '__main__':
     main()
