@@ -66,8 +66,8 @@ def deep_copy(l):
         res.append(toAppend)
     return res
 class Dev_card(Construction):
-    def __init__(self, action: int) -> None:
-        super().__init__(DEV_CARD, -1)
+    def __init__(self, action: int, i: int, player_id: int = -1) -> None:
+        super().__init__(DEV_CARD, player_id, i)
         self.action = action
         self.is_allowed = False
         self.used = False
@@ -97,6 +97,22 @@ class Dev_card(Construction):
         if self.action == ROADS_BUILD:
             return 'roads build'
     
+    def to_index(self):
+        return {
+            'type': 'Dev_card',
+            'i': self.i
+        }
+    
     def to_dict(self):
-        return super().to_dict()
-    # TODO
+        a = super().to_dict()
+        a['action'] = self.action
+        a['is_alowed'] = self.is_allowed
+        a['used'] = self.used
+        return a
+
+    @classmethod
+    def from_dict(cls, data):
+        obj = cls(int(data['action']), int(data['i']), int(data['player_id']))
+        obj.is_allowed = bool(data['is_alowed'])
+        obj.used = bool(data['used'])
+        return obj

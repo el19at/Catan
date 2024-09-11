@@ -68,6 +68,7 @@ class Game():
         self.player_propose[TAKE] = {ORE: 0, LUMBER:0, WOOL:0, BRICK:0, GRAIN:0}
         self.button_pos_trade: dict[tuple[int]: tuple] = {}
         self.board.turn = self.player_id
+        self.selected_card: Dev_card = None
         self.client = None
         self.lock = threading.Lock()
         self.update()
@@ -326,32 +327,35 @@ class Game():
         elif button_text == 'card':
             self.trade_mode = False
         elif button_text == 'buy card':
-            self.send_action(button_text, [])
-            self.board.buy_dev_card(self.board.players[self.player_id])
+            self.send_action(button_text)
         elif button_text == 'knight':
             if not self.board.use_dev_card(self.board.players[self.player_id], self.button_pos_to_card[position]):
                 return
+            self.selected_card = self.button_pos_to_card[position]
             self.robb_mode = True
             self.tile_to_robb = None
         elif button_text == 'monopoly':
             if not self.board.use_dev_card(self.board.players[self.player_id], self.button_pos_to_card[position]):
                 return
+            self.selected_card = self.button_pos_to_card[position]
             self.monopoly_mode = True
         elif button_text == 'year of plenty':
             if not self.board.use_dev_card(self.board.players[self.player_id], self.button_pos_to_card[position]):
                 return
+            self.selected_card = self.button_pos_to_card[position]
             self.year_of_plenty_mode = True
         elif button_text == 'roads build':
             if not self.board.use_dev_card(self.board.players[self.player_id], self.button_pos_to_card[position]):
                 return
+            self.selected_card = self.button_pos_to_card[position]
             self.road_building_state = 1
         elif button_text == 'bank trade':
             if self.board.players[self.player_id].valid_bank_trade(self.trade_propose):
-                self.send_action('bank trade', [self.trade_propose])
+                self.send_action('bank trade', {'propose':self.trade_propose})
         elif button_text == 'player trade':
-            self.send_action('send propose', [self.trade_propose])
+            self.send_action('send propose', {'propose':self.trade_propose})
         elif button_text in ['accept', 'refuse']:
-            self.send_action(button_text, [])
+            self.send_action(button_text)
             self.remove_button('accept')
             self.remove_button('refuse')
         elif button_text in RESOURCE_TO_STR.values():
@@ -371,15 +375,15 @@ class Game():
         
     def resource_clicked(self, button_text, position):
         if self.monopoly_mode:
-            self.send_action('monopoly', [RESOURCE_TO_INT[button_text]])
-            self.board.use_monopoly(self.board.players[self.player_id], RESOURCE_TO_INT[button_text])
+            self.send_action('monopoly', {'resource':RESOURCE_TO_INT[button_text], 'card': self.selected_card})
+            self.selected_card = None
             self.monopoly_mode = False
         elif self.year_of_plenty_mode:
             if self.year_of_plenty_mode_last_recsource == -1:
                 self.year_of_plenty_mode_last_recsource = RESOURCE_TO_INT[button_text]
             else:
-                self.send_action('year of plenty', [self.year_of_plenty_mode_last_recsource, RESOURCE_TO_INT[button_text]])
-                self.board.use_year_of_plenty(self.board.players[self.player_id], self.year_of_plenty_mode_last_recsource, RESOURCE_TO_INT[button_text])
+                self.send_action('year of plenty', {'first resource':self.year_of_plenty_mode_last_recsource,'second resource': RESOURCE_TO_INT[button_text], 'card': self.selected_card})
+                self.selected_card = None
                 self.year_of_plenty_mode = False
         elif self.trade_mode:
             take = position[0] < 730
@@ -423,17 +427,16 @@ class Game():
                 return
             village = intersection.get_collector()
             if village:
-                self.send_action('robb', [self.tile_to_robb, self.board.players[village.player_id]])
-                self.board.robb(self.board.players[self.player_id], self.tile_to_robb, self.board.players[village.player_id])
+                self.send_action('robb', {'tile':self.tile_to_robb, 'player':self.board.players[village.player_id], 'i':self.selected_card})
             else:
-                self.send_action('robb', [self.tile_to_robb])
-                self.board.robb(self.board.players[self.player_id], self.tile_to_robb)
+                self.send_action('robb', {'tile':self.tile_to_robb,'i':self.selected_card})
+            self.selected_card = None
             self.robb_mode = False
             self.tile_to_robb = None
             self.update()
             return
         if intersection and self.build_village_mode:
-            self.send_action('build village', [intersection])
+            self.send_action('build village', {'point': intersection})
             if 5 - self.board.players[self.player_id].constructions_counter[VILLAGE] == 0:
                 self.board.place_village(self.board.players[self.player_id], intersection, True)
                 self.force_build_road_mode = True
@@ -453,7 +456,7 @@ class Game():
                 free_road = False
                 if self.road_building_state > 0 or self.board.players[self.player_id].constructions_counter[ROAD] - 15 < 2:
                     free_road = True
-                self.send_action('build road', [self.clicked_point, intersection, free_road])
+                self.send_action('build road', {'point1':self.clicked_point, 'point2':intersection})
                 placed = self.board.place_road(self.board.players[self.player_id], self.clicked_point, intersection, free_road)
                 self.clicked_point = None
                 self.build_road_mode = False
@@ -469,7 +472,7 @@ class Game():
             self.update()
             return
         if intersection and self.build_city_mode:
-            self.send_action('build city', [intersection])
+            self.send_action('build city', {'point':intersection})
             self.board.place_city(self.board.players[self.player_id], intersection)
             self.build_city_mode = False
             self.update()
@@ -517,11 +520,9 @@ class Game():
 
         pygame.quit()    
 
-    def send_action(self, action: str, arguments:list = []):
-        data = json.dumps({'action': action, 'arguments': [argument.to_index() for argument in arguments if isinstance(argument, Indexable)]})
+    def send_action(self, action: str, arguments:dict = {}):
+        data = json.dumps({'action': action, 'arguments': {str(arg_name):arg_val.to_index() if isinstance(arg_val, Indexable) else arg_val for arg_name, arg_val in arguments.items()}})
         data_dict = json.loads(data)
-        for i, val in enumerate([val for val in arguments if not isinstance(val, Indexable)]):
-            data_dict[f'value{i}'] = val
         data = json.dumps(data_dict)
         if self.client:
             self.client.sendall(data)
@@ -634,7 +635,7 @@ class Game():
         width, height = 280, 256
         self.add_button((i_start + 5, j_start + 5),width-10, 30, 'buy card')
         i, j = i_start + 6, j_start + 40
-        cards = self.board.players[self.player_id].constructions[DEV_CARD]
+        cards = self.board.player_dev_cards(self.board.players[self.player_id])
         for card in cards:
             self.add_button((i, j), 86, 21, f'{card.get_action_str()}', Color('green') if card.usable() and self.board.players[self.player_id].dev_card_allowed else Color('red'))
             self.button_pos_to_card[(i, j)] = card

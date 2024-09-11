@@ -48,13 +48,13 @@ class Board(Indexable):
                 if tile.resource != SEA:
                     self.set_valid_village_postions(tile)
                     self.set_valid_road_positions(tile)
-        self.dev_cards = [Dev_card(KNIGHT) for _ in range(14)] \
+        self.dev_cards: list[Dev_card] = [Dev_card(KNIGHT) for _ in range(14)] \
         +[Dev_card(VICTORY_POINT) for _ in range(5)] \
         +[Dev_card(ROADS_BUILD) for _ in range(2)] \
         +[Dev_card(YEAR_OF_PLENTY) for _ in range(2)] \
         +[Dev_card(MONOPOLY) for _ in range(2)]
         random.shuffle(self.dev_cards)
-        for i, card in enumerate(self.dev_card_index):
+        for i, card in enumerate(self.dev_cards):
             card.i = i
         self.dev_card_index = 0
         self.game_phase = PHASE_FIRST_VILLAGE
@@ -144,7 +144,8 @@ class Board(Indexable):
     def roll_dices(self):
         return [random.randint(1, 6), random.randint(1,6)]
     
-    def place_village(self, player: Player, point: Point, isFirst: bool = False, isSecond: bool = False):
+    def place_village(self, point: Point, isFirst: bool = False, isSecond: bool = False):
+        player: Player = self.players[self.turn]
         village: Construction = None
         if isFirst or isSecond:
             village = player.constructions[VILLAGE][-1 if isFirst else -2]
@@ -166,7 +167,8 @@ class Board(Indexable):
             self.get_point_board(i, j).vacant = False
         return True
     
-    def place_road(self, player: Player, point1: Point, point2: Point, freeRoad: bool):
+    def place_road(self, point1: Point, point2: Point, freeRoad: bool):
+        player: Player = self.players[self.turn]
         road: Construction = None
         if freeRoad:
             for playerRoad in player.constructions[ROAD]:
@@ -183,14 +185,15 @@ class Board(Indexable):
             return False
         player.place_road(road, point1, point2)
         self.road_locations.remove(set([point1, point2]))
-        longest_path = max([gamePlayer.calc_longest_path() for gamePlayer in self.other_payers(player)])
+        longest_path = max([gamePlayer.calc_longest_path() for gamePlayer in self.other_players(player)])
         if longest_path < player.calc_longest_path():
-            for gamePlayer in self.other_payers(player):
+            for gamePlayer in self.other_players(player):
                 gamePlayer.longest_road = False
             player.longest_path = True
         return True
     
-    def place_city(self, player:Player, point: Point):
+    def place_city(self, point: Point):
+        player: Player = self.players[self.turn]
         city = player.buy(CITY)
         if not city:
             return False
@@ -208,6 +211,9 @@ class Board(Indexable):
                     continue
                 self.players[collector.player_id].resources[tile.recource] += (1 if collector.type_of == VILLAGE else 2)
         self.dice_rolled = True
+    
+    def player_dev_cards(self, player: Player):
+        return [card for card in self.dev_cards if card.player_id == player.id]    
         
     def buy_dev_card(self):
         player: Player = self.players[self.turn]
@@ -234,24 +240,8 @@ class Board(Indexable):
     def get_construction_position(self, player: Player, type_of: int):
         return [construction.coord for construction in player.constructions[type_of]]
     
-    def to_string(self):
-        num_to_rec = {}
-        num_to_rec[0] = 'DESERT'
-        num_to_rec[1] = 'SEA'
-        num_to_rec[2] = 'LUMBER'
-        num_to_rec[3] = 'BRICK'
-        num_to_rec[4] = 'ORE'
-        num_to_rec[5] = 'WOOL'
-        num_to_rec[6] = 'GRAIN'
-        res = ''
-        for row in self.tiles:
-            res += (5-len(row)) * '    '
-            for tile in row:
-                res += f'({num_to_rec[tile.resource]}, {tile.number})'
-            res += '\n'
-        return res
-    
-    def use_dev_card(self, player: Player, card: Dev_card):
+    def use_dev_card(self, card: Dev_card):
+        player: Player = self.players[self.turn]
         if not card or card.action == VICTORY_POINT:
             return False
         if not (player.dev_card_allowed and card.allow_use and not card.used):
@@ -264,7 +254,8 @@ class Board(Indexable):
         player.resources[first_resource] += 1
         player.resources[second_resource] += 1
     
-    def use_monopoly(self, player: Player, resource: int):
+    def use_monopoly(self, resource: int):
+        player: Player = self.players[self.turn]
         get = 0
         for gamePlayer in self.players.values():
             get += gamePlayer.resources[resource]
@@ -302,7 +293,7 @@ class Board(Indexable):
                         players_id.append(players_id)
         return [self.players[player_id] for player_id in players_id]
         
-    def other_payers(self, player: Player):
+    def other_players(self, player: Player):
         return [gamePlayer for gamePlayer in self.players.values() if gamePlayer != player]
     
     def win(self):
@@ -330,27 +321,32 @@ class Board(Indexable):
         return [point for point in self.village_locations if point.vacant and point.have_road(player.id)]
     
     def get_construction(self, index)->Construction:
-        type_of = index['type_of']
-        player_id = index['player_id']
-        i = index['i']
+        type_of = int(index['type_of'])
+        player_id = int(index['player_id'])
+        i = int(index['i'])
         return self.players[player_id][type_of][i]
     
+    def get_dev_card(self, index)->Dev_card:
+        return self.dev_cards[int(index['i'])]
+    
     def get_player(self, index) -> Player:
-        return self.players[index['id']]
+        return self.players[int(index['id'])]
     
     def get_point(self, index) -> Point:
-        i = index['row']
-        j = index['column']
+        i = int(index['row'])
+        j = int(index['column'])
         return self.get_point_board((i, j))
     
     def get_tile(self, index) -> Tile:
-        i = index['row']
-        j = index['column']
+        i = int(index['row'])
+        j = int(index['column'])
         return self.tiles[i][j]
     
     def get_object(self, index):
         if index['type'] == 'Construction':
             return self.get_construction(index)
+        if index['type'] == 'Dev_card':
+            return self.get_dev_card(index)
         if index['type'] == 'Player':
             return self.get_player(index)
         if index['type'] == 'Point':

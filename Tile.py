@@ -9,6 +9,8 @@ class Tile(Indexable):
         self.row = -1
         self.column = -1
     
+
+    
     def set_index(self, row: int, column: int):
         self.row = row
         self.column= column

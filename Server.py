@@ -2,13 +2,11 @@ import socket
 import threading
 import json
 import time
-from Board import Board
-from Game import Game
 from sys import argv
 from Constatnt import RED, PHASE_FIRST_VILLAGE, PHASE_SECOND_VILLAGE, PHASE_INGAME, EMPTY_PROPOSE, convert_to_bool_dict, MONOPOLY, YEAR_OF_PLENTY, KNIGHT, ROADS_BUILD
 import random
+from Board import Board, Player, Point
 
-from Player import Player
 
 def update_player(client_socket: socket.socket, board: Board):
     json_board = board.board_to_json()
@@ -26,7 +24,7 @@ def send_player_propose(clients: dict[socket.socket:Player], player_id: int, pro
         toSend = json.dumps({"propse": propose})
         client.sendall(toSend.encode('utf-8'))
 
-def accept_clients(players, gamePlayers) -> dict[socket:Player]:
+def accept_clients(players, gamePlayers) -> dict[socket.socket:Player]:
     server_address = ('0.0.0.0', 50000)
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.bind(server_address)
@@ -106,15 +104,13 @@ def receive_action(client_socket):
         
     data_dict = json.loads(buffer)
     action = data_dict.get('action')
-    args = data_dict.get('arguments', [])
-    additional_args = [data_dict.get(f'value{i}') for i in range(len(data_dict)) if f'value{i}' in data_dict]
-    args.extend(additional_args)
+    args = data_dict.get('arguments', {})
     return action, args
     
 def main():
     players = 1 #int(argv[1]) if len(argv) > 1 else 3    
     board = Board(num_of_players=players)
-    clients: dict[socket:player] = accept_clients(players, board.players)
+    clients = accept_clients(players, board.players)
     board.turn = random.choice([player.id for player in clients.values()])
     starter = board.turn
     ender = RED + (starter-1) % len(clients)
@@ -124,6 +120,7 @@ def main():
     
     while not board.win():
         turn_socket = player_to_socket(clients, board.turn)
+        turn_player: Player = clients[turn_socket]
         action = 'start turn'
         while action != 'end turn':
             action, arguments = receive_action(turn_socket)
@@ -138,33 +135,46 @@ def main():
                 board.buy_dev_card()
                 update_players(clients, board)
             if action == 'bank trade':
-                clients[turn_socket].bank_trade(convert_to_bool_dict(arguments[0]))
+                turn_player.bank_trade(convert_to_bool_dict(arguments['propse']))
                 update_players(clients, board)
             if action == 'player trade':
-                send_player_propose(clients, board.turn, convert_to_bool_dict(arguments[0]))
+                send_player_propose(clients, board.turn, convert_to_bool_dict(arguments['propse']))
                 socket = wait_for_player_response(clients, board.turn)
                 send_player_propose(clients, board.turn, EMPTY_PROPOSE)
                 if socket in clients.keys():
-                    clients[turn_socket].make_trade(clients[socket], convert_to_bool_dict(arguments[0]))
+                    turn_player.make_trade(clients[socket], convert_to_bool_dict(arguments['propse']))
                 update_players(clients, board)
             if action == 'roll dice':
                 dices = board.roll_dices()
-                board.give_recources(dices)
+                if dices == 7:
+                    pass
+                else:
+                    board.give_recources(dices)
                 update_players(clients, board)
             if action == 'monopoly':
-                resource = int(arguments[0])
-                card = clients[turn_socket].get_first_valid_dev_card(MONOPOLY)
+                resource = int(arguments['resource'])
+                card = board.get_object(arguments['card'])
                 if card and board.use_dev_card(clients[turn_socket], card):
                     board.use_monopoly(resource)
                 update_players(clients, board)
             if action == 'year of plenty':
-                resource = [int(arguments[0]), int(arguments[1])]
-                card = clients[turn_socket].get_first_valid_dev_card(YEAR_OF_PLENTY)
+                resource = [int(arguments['first resource']), int(arguments['second resource'])]
+                card = board.get_object(arguments['card'])
                 if card and board.use_dev_card(clients[turn_socket], card):
                     board.use_year_of_plenty(resource[0], resource[1])
                 update_players(clients, board)
-            
-                
+            if action == 'build village':
+                point:Point = board.get_object(arguments['point']) 
+                board.place_village(point, board.game_phase == PHASE_FIRST_VILLAGE, board.game_phase == PHASE_SECOND_VILLAGE)
+                update_players(clients, board)
+            if action == 'build road':
+                point1: Point = board.get_object(arguments['point1'])
+                point2: Point = board.get_object(arguments['point2'])
+                board.place_road(point1, point2, board.game_phase != PHASE_INGAME)
+                update_players(clients, board)
+            if action == 'build city':
+                point:Point = board.get_object(arguments['point'])
+                board.place_city(point)
             
         
     
