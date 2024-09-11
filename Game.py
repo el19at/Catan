@@ -68,8 +68,10 @@ class Game():
         self.player_propose[TAKE] = {ORE: 0, LUMBER:0, WOOL:0, BRICK:0, GRAIN:0}
         self.button_pos_trade: dict[tuple[int]: tuple] = {}
         self.board.turn = self.player_id
+        self.player: Player = self.board.players[self.player_id]
         self.selected_card: Dev_card = None
         self.client = None
+        self.seven_mode = False
         self.lock = threading.Lock()
         self.update()
     
@@ -214,7 +216,7 @@ class Game():
         self.draw_circle(COLORS[self.board.turn], (943, 25), 8)
         self.draw_rectangle(pygame.Color('white'), pygame.Color('black'), (670, 37), 280, 40, 3)
         i = 690
-        for res, amount in self.board.players[self.player_id].resources.items():
+        for res, amount in self.player.resources.items():
             self.draw_circle(COLORS[res], (i, 57), 7)
             self.write_text((i+15, 57), f'{amount}')
             i+=50
@@ -233,12 +235,11 @@ class Game():
         self.draw_rectangle(pygame.Color('white'), pygame.Color('black'), (670, 445), 280, 40, 3)
         
         self.write_text((701,463), 'points:')
-        self.write_text((737, 463), f'{self.board.players[self.player_id].get_real_points()}')
+        self.write_text((737, 463), f'{self.board.get_real_points(player)}')
         self.write_text((775,463), 'path:')
-        player: Player =  self.board.players[self.player_id]
-        self.write_text((803, 463), f'{player.calc_longest_path()}')
+        self.write_text((803, 463), f'{self.player.calc_longest_path()}')
         self.write_text((875,463), 'army size: ')
-        self.write_text((920, 463), f'{self.board.players[self.player_id].army_size}')
+        self.write_text((920, 463), f'{self.player.army_size}')
         
         self.add_button((670, 490), 130, 40, 'roll dice')
         self.add_button((820, 490), 130, 40, 'end turn')
@@ -293,7 +294,7 @@ class Game():
                     self.draw_circle(pygame.Color('green') if point in self.board.valid_village_positions(self.player_id) else pygame.Color('red'), self.intersection_logical_to_gui(point), 5)
         
     def draw_valid_city_postions(self):
-        for village in self.board.players[self.player_id].constructions[VILLAGE]:
+        for village in self.player.constructions[VILLAGE]:
             if village.is_placed():
                 self.draw_circle(pygame.Color('green'), self.intersection_coord_to_gui(village.coord), 5)
             
@@ -304,12 +305,12 @@ class Game():
                     x, y = self.intersection_coord_to_gui(city.coord)
                     self.draw_filled_rectangle(COLORS[id], (x-10, y-10), 20, 20)
             
-    def button_clicked(self, button_text, position = (-1, -1)):
+    def button_clicked(self, button_text, position = (-1, -1), from_dices: bool = False):
         if button_text == 'roll dice':
             self.send_action(button_text)
         elif button_text == 'end turn':
             self.send_action(button_text)
-            self.board.players[self.player_id].end_turn()
+            self.player.end_turn()
         elif button_text == 'village':
             self.build_village_mode = not self.build_village_mode
             self.build_road_mode = False
@@ -329,28 +330,29 @@ class Game():
         elif button_text == 'buy card':
             self.send_action(button_text)
         elif button_text == 'knight':
-            if not self.board.use_dev_card(self.board.players[self.player_id], self.button_pos_to_card[position]):
+            if not self.board.use_dev_card(self.button_pos_to_card[position]) and not from_dices:
                 return
-            self.selected_card = self.button_pos_to_card[position]
+            if not from_dices:
+                self.selected_card = self.button_pos_to_card[position]
             self.robb_mode = True
             self.tile_to_robb = None
         elif button_text == 'monopoly':
-            if not self.board.use_dev_card(self.board.players[self.player_id], self.button_pos_to_card[position]):
+            if not self.board.use_dev_card(self.button_pos_to_card[position]):
                 return
             self.selected_card = self.button_pos_to_card[position]
             self.monopoly_mode = True
         elif button_text == 'year of plenty':
-            if not self.board.use_dev_card(self.board.players[self.player_id], self.button_pos_to_card[position]):
+            if not self.board.use_dev_card(self.button_pos_to_card[position]):
                 return
             self.selected_card = self.button_pos_to_card[position]
             self.year_of_plenty_mode = True
         elif button_text == 'roads build':
-            if not self.board.use_dev_card(self.board.players[self.player_id], self.button_pos_to_card[position]):
+            if not self.board.use_dev_card(self.button_pos_to_card[position]):
                 return
             self.selected_card = self.button_pos_to_card[position]
             self.road_building_state = 1
         elif button_text == 'bank trade':
-            if self.board.players[self.player_id].valid_bank_trade(self.trade_propose):
+            if self.player.valid_bank_trade(self.trade_propose):
                 self.send_action('bank trade', {'propose':self.trade_propose})
         elif button_text == 'player trade':
             self.send_action('send propose', {'propose':self.trade_propose})
@@ -362,6 +364,10 @@ class Game():
             self.resource_clicked(button_text, position)
         elif position in self.button_pos_trade.keys():
             self.trade_resource_clicked(position)
+        elif button_text == 'give to robber':
+            if sum(self.trade_propose[GIVE].values()) == self.player.resource_to_robb():
+                self.send_action('give to robb', {'resources': self.trade_propose[GIVE]})
+                self.seven_mode = False
         self.clicked_point = None
     
     def have_player_propose(self):
@@ -389,7 +395,7 @@ class Game():
             take = position[0] < 730
             resource = RESOURCE_TO_INT[button_text]
             if not take:
-                if self.board.players[self.player_id].resources[resource] > self.trade_propose[GIVE][resource]:
+                if self.player.resources[resource] > self.trade_propose[GIVE][resource]:
                     self.trade_propose[GIVE][resource] += 1
             else:
                 self.trade_propose[TAKE][resource] += 1 
@@ -401,7 +407,7 @@ class Game():
         return i_s<pos[0] and pos[0] < i_e and j_s<pos[1] and pos[1] < j_e
     
     def handle_click(self, pos):
-        if not self.is_my_turn() and not self.click_in_trade(pos):
+        if (self.seven_mode or not self.is_my_turn()) and not self.click_in_trade(pos):
             self.update()
             return
         tile_pos = self.get_tile_pos_by_click(pos)
@@ -426,10 +432,17 @@ class Game():
                 self.update()
                 return
             village = intersection.get_collector()
-            if village:
-                self.send_action('robb', {'tile':self.tile_to_robb, 'player':self.board.players[village.player_id], 'i':self.selected_card})
+            if self.selected_card:
+                if village:
+                    self.send_action('robb', {'tile':self.tile_tod_robb, 'player':self.board.players[village.player_id], 'card':self.selected_card})
+                else:
+                    self.send_action('robb', {'tile':self.tile_to_robb,'card':self.selected_card})
             else:
-                self.send_action('robb', {'tile':self.tile_to_robb,'i':self.selected_card})
+                if village:
+                    self.send_action('robb', {'tile':self.tile_tod_robb, 'player':self.board.players[village.player_id]})
+                else:
+                    self.send_action('robb', {'tile':self.tile_to_robb})
+            
             self.selected_card = None
             self.robb_mode = False
             self.tile_to_robb = None
@@ -437,14 +450,14 @@ class Game():
             return
         if intersection and self.build_village_mode:
             self.send_action('build village', {'point': intersection})
-            if 5 - self.board.players[self.player_id].constructions_counter[VILLAGE] == 0:
-                self.board.place_village(self.board.players[self.player_id], intersection, True)
+            if 5 - self.player.constructions_counter[VILLAGE] == 0:
+                self.board.place_village(intersection, True)
                 self.force_build_road_mode = True
-            elif 5 - self.board.players[self.player_id].constructions_counter[VILLAGE] == 1:
-                self.board.place_village(self.board.players[self.player_id], intersection, False, True)
+            elif 5 - self.player.constructions_counter[VILLAGE] == 1:
+                self.board.place_village(intersection, False, True)
                 self.force_build_road_mode = True
             else:
-                self.board.place_village(self.board.players[self.player_id], intersection)
+                self.board.place_village(intersection)
             self.build_village_mode = False
             self.update()
             return
@@ -454,10 +467,10 @@ class Game():
                 return
             elif self.clicked_point:
                 free_road = False
-                if self.road_building_state > 0 or self.board.players[self.player_id].constructions_counter[ROAD] - 15 < 2:
+                if self.road_building_state > 0 or self.player.constructions_counter[ROAD] - 15 < 2:
                     free_road = True
                 self.send_action('build road', {'point1':self.clicked_point, 'point2':intersection})
-                placed = self.board.place_road(self.board.players[self.player_id], self.clicked_point, intersection, free_road)
+                placed = self.board.place_road(self.clicked_point, intersection, free_road)
                 self.clicked_point = None
                 self.build_road_mode = False
                 if placed:
@@ -473,7 +486,7 @@ class Game():
             return
         if intersection and self.build_city_mode:
             self.send_action('build city', {'point':intersection})
-            self.board.place_city(self.board.players[self.player_id], intersection)
+            self.board.place_city(intersection)
             self.build_city_mode = False
             self.update()
             return
@@ -539,9 +552,15 @@ class Game():
                 with self.lock:  # Lock to safely update the current proposal
                     self.player_propose = new_propose
                 threading.Thread(target=self.process_proposal).start()
+            elif 'seven' == data[:5]:
+                self.seven_mode = True
+            elif 'robb' == data[:4]:
+                self.button_clicked('knight')
+                self.update()
+                break
             else:
                 self.update_board(self.dict_to_board(data_dict))
-                
+            
     def process_proposal(self):
         while True:
             with self.lock:
@@ -596,7 +615,9 @@ class Game():
     def draw_cards_trade(self):
         self.draw_rectangle(pygame.Color('white'), pygame.Color('black'), (670, 170), 280, 256, 3)
         self.remove_cards_trade_buttons()
-        if not self.is_my_turn():
+        if self.seven_mode:
+            self.draw_trade_dashboard()
+        elif not self.is_my_turn():
             self.draw_trade_accept()
         elif self.year_of_plenty_mode or self.monopoly_mode:
             self.draw_resource_picking_dashboard()
@@ -647,13 +668,14 @@ class Game():
     def draw_trade_dashboard(self):
         i_start, j_start = 670, 185
         width, height = 280, 256
-        self.write_text((i_start + width//4, j_start-3), 'take:', 25)
-        self.add_button((i_start + 8, j_start + 10), (width-10)//2 - 5, 30, 'lumber', COLORS[LUMBER])
-        self.add_button((i_start + 8, j_start + 45),  (width-10)//2 - 5, 30, 'ore', COLORS[ORE])
-        self.add_button((i_start + 8, j_start + 80),  (width-10)//2 - 5, 30, 'grain', COLORS[GRAIN])
-        self.add_button((i_start + 8, j_start + 115),  (width-10)//2 - 5, 30, 'brick', COLORS[BRICK])
-        self.add_button((i_start + 8, j_start + 150),  (width-10)//2 - 5, 30, 'wool', COLORS[WOOL])
-        
+        if not self.seven_mode:
+            self.write_text((i_start + width//4, j_start-3), 'take:', 25)
+            self.add_button((i_start + 8, j_start + 10), (width-10)//2 - 5, 30, 'lumber', COLORS[LUMBER])
+            self.add_button((i_start + 8, j_start + 45),  (width-10)//2 - 5, 30, 'ore', COLORS[ORE])
+            self.add_button((i_start + 8, j_start + 80),  (width-10)//2 - 5, 30, 'grain', COLORS[GRAIN])
+            self.add_button((i_start + 8, j_start + 115),  (width-10)//2 - 5, 30, 'brick', COLORS[BRICK])
+            self.add_button((i_start + 8, j_start + 150),  (width-10)//2 - 5, 30, 'wool', COLORS[WOOL])
+            
         self.write_text((i_start + 3*width//4, j_start-3), 'give:', 25)
         self.add_button((i_start + (width-10)//2 + 8, j_start + 10), (width-10)//2 - 5, 30, 'lumber', COLORS[LUMBER])
         self.add_button((i_start + (width-10)//2 + 8, j_start + 45), (width-10)//2 - 5, 30, 'ore', COLORS[ORE])
@@ -664,13 +686,18 @@ class Game():
         i = i_start + 9
         button_size = 23
         for resource in self.trade_propose[TAKE].keys():
-            self.add_button((i, j_start + 183), button_size, button_size, f'{self.trade_propose[TAKE][resource]}', COLORS[resource])
+            if not self.seven_mode:
+                self.add_button((i, j_start + 183), button_size, button_size, f'{self.trade_propose[TAKE][resource]}', COLORS[resource])
+                self.button_pos_trade[(i, j_start + 183)] = resource
             self.add_button((i + (width-10)//2, j_start + 183), button_size, button_size, f'{self.trade_propose[GIVE][resource]}', COLORS[resource])
-            self.button_pos_trade[(i, j_start + 183)], self.button_pos_trade[(i + (width-10)//2, j_start + 183)] = resource, resource
+            self.button_pos_trade[(i + (width-10)//2, j_start + 183)] = resource
             i += (button_size+3)
         
-        self.add_button((i_start + 8, j_start + height - 45), (width-10)//2 - 5, 25, 'bank trade', Color('green') if self.board.players[self.player_id].valid_bank_trade(self.trade_propose) else Color('red'))
-        self.add_button((i_start + (width-10)//2 + 8, j_start + height - 45), (width-10)//2 - 5, 25, 'player trade')
+        if self.seven_mode:
+            self.add_button((i_start + 8, j_start + height - 45), width-20 , 25, 'give to robber', Color('green') if sum(self.trade_propose[TAKE].values())==self.player.resource_to_robb() else Color('red'))
+        else:
+            self.add_button((i_start + 8, j_start + height - 45), (width-10)//2 - 5, 25, 'bank trade', Color('green') if self.board.players[self.player_id].valid_bank_trade(self.trade_propose) else Color('red'))
+            self.add_button((i_start + (width-10)//2 + 8, j_start + height - 45), (width-10)//2 - 5, 25, 'player trade')
             
             
     def remove_cards_trade_buttons(self):

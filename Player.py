@@ -145,6 +145,9 @@ class Player(Indexable):
             res[key] = value
         return res
     
+    def resource_to_robb(self):
+        return 0 if self.get_num_of_resources() < 8 else self.get_num_of_resources()//2
+    
     def road_exist_at_position(self, c1, c2):
         for road in [road for road in self.constructions[ROAD] if road.is_placed()]:
             p1, p2 = tuple(road.coord[0]), tuple(road.coord[1])

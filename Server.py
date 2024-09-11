@@ -1,11 +1,10 @@
 import socket
 import threading
 import json
-import time
 from sys import argv
-from Constatnt import RED, PHASE_FIRST_VILLAGE, PHASE_SECOND_VILLAGE, PHASE_INGAME, EMPTY_PROPOSE, convert_to_bool_dict, MONOPOLY, YEAR_OF_PLENTY, KNIGHT, ROADS_BUILD
+from Constatnt import RED, PHASE_FIRST_VILLAGE, PHASE_SECOND_VILLAGE, PHASE_INGAME, EMPTY_PROPOSE, convert_to_bool_dict, convert_to_int_dict, MONOPOLY, YEAR_OF_PLENTY, KNIGHT, ROADS_BUILD
 import random
-from Board import Board, Player, Point
+from Board import Board, Player, Point, Tile, Dev_card
 
 
 def update_player(client_socket: socket.socket, board: Board):
@@ -15,13 +14,22 @@ def update_player(client_socket: socket.socket, board: Board):
 def send_player_id(client_socket: socket.socket, player_id: int):
     toSend = json.dumps({"player_id": player_id})
     client_socket.sendall(toSend.encode('utf-8'))
-    time.sleep(1)
+
+def send_robb(client_socket: socket.socket):
+    toSend = json.dumps({"robb": "robb"})
+    client_socket.sendall(toSend.encode('utf-8'))
+
     
 def send_player_propose(clients: dict[socket.socket:Player], player_id: int, propose: dict[bool:dict[int:int]]):
     for client, id in clients.items():
         if id == player_id:
             continue
         toSend = json.dumps({"propse": propose})
+        client.sendall(toSend.encode('utf-8'))
+
+def send_seven(clients: dict[socket.socket:Player]):
+    for client, id in clients.items():
+        toSend = json.dumps({"seven": "seven"})
         client.sendall(toSend.encode('utf-8'))
 
 def accept_clients(players, gamePlayers) -> dict[socket.socket:Player]:
@@ -55,7 +63,7 @@ def wait_for_player_response(clients: dict, proposer_id: int):
         nonlocal accepted_socket
         if player_id == proposer_id:
             return  # Skip the player who proposed the trade
-        response = receive_action(client_socket)
+        response, _ = receive_action(client_socket)
         if response == "accept":
             with lock:
                 accepted_socket[0] = client_socket  # Set the accepted player's socket
@@ -76,6 +84,26 @@ def wait_for_player_response(clients: dict, proposer_id: int):
         thread.join()
 
     return accepted_socket[0]  # Return the accepted player's socket, or -1 if no one accepted
+
+def wait_for_player_resource(clients: dict):
+    def wait_for_response(client_socket, player_id):
+        action, arg = receive_action(client_socket)
+        if action == "give to robb":
+            player: Player = clients[client_socket]
+            for key, val in convert_to_int_dict(arg).items():
+                player.resources[key] -= val
+        else:
+            return
+    threads = []
+    for client_socket in clients.keys():
+        thread = threading.Thread(target=wait_for_response, args=(client_socket))
+        thread.start()
+        threads.append(thread)
+
+    for thread in threads:
+        thread.join()
+
+
 
 def player_to_socket(clients, player_id: int)->socket.socket:
     for key, value in clients:
@@ -122,6 +150,7 @@ def main():
         turn_socket = player_to_socket(clients, board.turn)
         turn_player: Player = clients[turn_socket]
         action = 'start turn'
+        dices = -1
         while action != 'end turn':
             action, arguments = receive_action(turn_socket)
             if action == 'end turn':
@@ -147,7 +176,9 @@ def main():
             if action == 'roll dice':
                 dices = board.roll_dices()
                 if dices == 7:
-                    pass
+                    send_seven(clients)
+                    wait_for_player_resource(clients)
+                    send_robb(turn_socket)
                 else:
                     board.give_recources(dices)
                 update_players(clients, board)
@@ -175,6 +206,22 @@ def main():
             if action == 'build city':
                 point:Point = board.get_object(arguments['point'])
                 board.place_city(point)
+                update_players(clients, board)
+
+            if action == 'robb':
+                tile: Tile = board.get_object(arguments['tile'])
+                player: Player = board.get_object(arguments['player']) if 'player' in arguments.keys() else None
+                card: Dev_card = board.get_object(arguments['card']) if 'player' in arguments.keys() else None
+                if not card and dices != 7:
+                    continue
+                if card:
+                    board.use_dev_card(card)
+                    board.robb(tile, player, fromDice=False)
+                else:
+                    board.robb(tile, player, fromDice=True)
+                update_players(clients, board)
+                
+                
             
         
     
