@@ -66,7 +66,7 @@ def deep_copy(l):
         res.append(toAppend)
     return res
 class Dev_card(Construction):
-    def __init__(self, action: int, i: int, player_id: int = -1) -> None:
+    def __init__(self, action: int, i: int = -1, player_id: int = -1) -> None:
         super().__init__(DEV_CARD, player_id, i)
         self.action = action
         self.is_allowed = False

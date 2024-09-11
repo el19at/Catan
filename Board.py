@@ -12,7 +12,7 @@ from Constatnt import LUMBER, BRICK, ORE, WOOL, GRAIN, \
                     PHASE_FIRST_VILLAGE, PHASE_SECOND_VILLAGE, PHASE_INGAME
 
 #from Game import TILES_NUMBERS, TILES_RESOURCES, DESERT, SEA, LUMBER, BRICK, ORE, WOOL, GRAIN
-class Board(Indexable):
+class Board():
     def __init__(self, num_of_players: int = 3, point_limit: int = 10):
         self.turn = -1
         self.point_limit = point_limit
@@ -58,7 +58,7 @@ class Board(Indexable):
             card.i = i
         self.dev_card_index = 0
         self.game_phase = PHASE_FIRST_VILLAGE
-                    
+
     def set_valid_village_postions(self, tile: Tile):
         for point in tile.points:
             if not point in self.village_locations:
@@ -71,7 +71,8 @@ class Board(Indexable):
                 self.road_locations.append(toAdd)
         if not set([tile.points[0], tile.points[-1]]) in self.road_locations:
             self.road_locations.append(set([tile.points[0], tile.points[-1]]))
-    def init_row(self, row: list["Tile"], numbers, resources, up: bool):
+    
+    def init_row(self, row: list['Tile'], numbers, resources, up: bool):
         if len(row) <= 3:
             return
         newRow: list["Tile"] = [Tile(resources[0], numbers[0])]
@@ -297,7 +298,7 @@ class Board(Indexable):
         return [gamePlayer for gamePlayer in self.players.values() if gamePlayer != player]
     
     def win(self):
-        return max([player.get_real_points() for player in self.players.values()]) >= self.point_limit
+        return max([self.get_real_points(player) for player in self.players.values()]) >= self.point_limit
     
     def valid_road_positions(self, player_id: int):
         player = self.players[player_id]

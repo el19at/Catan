@@ -12,18 +12,19 @@ def start_client() -> socket.socket:
 
 def recive_board(client):
     # Buffer to hold the incoming data
-    buffer = ""
+    buffer = ''
     while True:
         # Continuously receive data in chunks of 4096 bytes
         data = client.recv(4096).decode('utf-8')
-        if not data:
+        if not data and buffer != '':
             break
         buffer += data
     json_data = json.loads(buffer)
     return json_to_board(json_data)
 
 def recive_player_id(client):
-    data = client.recv(512).decode('utf-8')
+    data = client.recv(17).decode('utf-8')
+    print(f'len of player id resonse: {len(data)}')
     return json.loads(data)['player_id']
 
 if __name__ == "__main__":

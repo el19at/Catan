@@ -40,7 +40,7 @@ class Tile(Indexable):
         return {
             'resource' :self.resource,
             'number': self.number,
-            'points': [point.to_dict() for point in self.points],
+            'points': [point.to_dict() for point in self.points if point],
             'robbed': self.robbed,
             'row': self.row,
             'column': self.column

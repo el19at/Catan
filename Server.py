@@ -2,6 +2,7 @@ import socket
 import threading
 import json
 from sys import argv
+import time
 from Constatnt import RED, PHASE_FIRST_VILLAGE, PHASE_SECOND_VILLAGE, PHASE_INGAME, EMPTY_PROPOSE, convert_to_bool_dict, convert_to_int_dict, MONOPOLY, YEAR_OF_PLENTY, KNIGHT, ROADS_BUILD
 import random
 from Board import Board, Player, Point, Tile, Dev_card
@@ -14,6 +15,7 @@ def update_player(client_socket: socket.socket, board: Board):
 def send_player_id(client_socket: socket.socket, player_id: int):
     toSend = json.dumps({"player_id": player_id})
     client_socket.sendall(toSend.encode('utf-8'))
+    # time.sleep(1)
 
 def send_robb(client_socket: socket.socket):
     toSend = json.dumps({"robb": "robb"})
@@ -105,8 +107,8 @@ def wait_for_player_resource(clients: dict):
 
 
 
-def player_to_socket(clients, player_id: int)->socket.socket:
-    for key, value in clients:
+def player_to_socket(clients: dict, player_id: int)->socket.socket:
+    for key, value in clients.items():
         if value.id == player_id:
             return key
     return None
@@ -136,7 +138,7 @@ def receive_action(client_socket):
     return action, args
     
 def main():
-    players = 1 #int(argv[1]) if len(argv) > 1 else 3    
+    players = 1#int(argv[1]) if len(argv) > 1 else 3    
     board = Board(num_of_players=players)
     clients = accept_clients(players, board.players)
     board.turn = random.choice([player.id for player in clients.values()])
@@ -145,6 +147,8 @@ def main():
     
     for socket, player in clients.items():
         send_player_id(socket, player.id)
+    
+    update_players(clients, board)
     
     while not board.win():
         turn_socket = player_to_socket(clients, board.turn)
