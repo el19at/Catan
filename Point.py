@@ -16,7 +16,7 @@ class Point(Indexable):
     def build_on_point(self, construction: Construction):
         self.constructions.append(construction)
         if construction.type_of != ROAD:
-            self.vacant + False
+            self.vacant = False
     
     def get_neib_points_coord(self):
         i, j = self.row, self.column
@@ -48,7 +48,7 @@ class Point(Indexable):
             'row': self.row,
             'column': self.column,
             'constructions': [construction.to_dict() for construction in self.constructions], 
-            'vaccant': self.vacant
+            'vacant': self.vacant
         }
     
     @classmethod

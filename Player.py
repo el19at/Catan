@@ -227,7 +227,7 @@ class Player(Indexable):
         player = cls(int(data['id']))
         player.constructions = {int(k): [Construction.from_dict(c) for c in v] for k, v in data['constructions'].items()}
         player.constructions_counter = convert_to_int_dict(data['constructions_counter'])
-        player.resources = int(data['resources'])
+        player.resources = convert_to_int_dict(data['resources'])
         player.army_size = int(data['army_size'])
         player.biggest_army = bool(data['biggest_army'])
         player.longest_road_points = bool(data['longest_road_points'])

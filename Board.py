@@ -34,8 +34,8 @@ class Board():
         for i, row in enumerate(self.tiles):
             for j, tile in enumerate(row):
                 tile.set_index(i, j)
-        self.ROWS, self.COLUMNS = 2*(len(self.tiles)+1), 2*len(self.tiles[0])
-        self.points = {}
+        self.ROWS, self.COLUMNS = 3*(len(self.tiles)+1), 3*len(self.tiles[0])
+        self.points: dict[tuple:Point] = {}
         self.init_points()
         self.set_tiles_points()
         self.num_of_players = num_of_players
@@ -118,10 +118,10 @@ class Board():
     def init_points(self):
         for i in range(self.ROWS):
             for j in range(self.COLUMNS):
-                self.points[f'({i}, {j})'] = Point(i, j)
+                self.points[(i, j)] = Point(i, j)
     
     def get_point_board(self, row, column) -> Point:
-        return self.points[f'({row}, {column})'] if f'({row}, {column})' in self.points.keys() else None
+        return self.points[(row, column)] if (row, column) in self.points.keys() else None
         
     def set_tiles_points(self):
         for i, row in enumerate(self.tiles):
@@ -301,11 +301,9 @@ class Board():
         return max([self.get_real_points(player) for player in self.players.values()]) >= self.point_limit
     
     def valid_road_positions(self, player_id: int):
-        player = self.players[player_id]
+        player: Player = self.players[player_id]
         res  = []
-        for type_of, constructionsList in player.constructions.items(): 
-            if type_of == DEV_CARD:
-                continue
+        for constructionsList in player.constructions.values(): 
             for construction in constructionsList:
                 for coord in construction.coord:
                     point = self.get_point_board(coord[0], coord[1])
@@ -317,7 +315,7 @@ class Board():
         
     def valid_village_positions(self, player_id: int):
         player = self.players[player_id]
-        if player.get_real_points() < 2:
+        if self.get_real_points(player) < 2:
             return [point for point in self.village_locations if point.vacant]
         return [point for point in self.village_locations if point.vacant and point.have_road(player.id)]
     
@@ -336,7 +334,7 @@ class Board():
     def get_point(self, index) -> Point:
         i = int(index['row'])
         j = int(index['column'])
-        return self.get_point_board((i, j))
+        return self.get_point_board(i, j)
     
     def get_tile(self, index) -> Tile:
         i = int(index['row'])
@@ -356,28 +354,49 @@ class Board():
             return self.get_tile(index)
 
     def to_dict(self):
+        road_location_list = []
+        for points in self.road_locations:
+            listPoint = list(points)
+            road_location_list.append([listPoint[0].row, listPoint[0].column, listPoint[1].row, listPoint[1].column])
+            
         return {
             'turn': self.turn,
             'point_limit': self.point_limit,
             'tiles': [[tile.to_dict() for tile in row] for row in self.tiles],
-            'robbed_tile': self.robbed_tile.to_dict() if self.robbed_tile else None,
+            'robbed_tile': (self.robbed_tile.row, self.robbed_tile.column),
             'points': {str(k): v.to_dict() for k, v in self.points.items()},
             'num_of_players': self.num_of_players,
             'players': {k: v.to_dict() for k, v in self.players.items()},
-            'dev_cards': [dev_card.to_dict() for dev_card in self.dev_cards]
+            'dev_cards': [dev_card.to_dict() for dev_card in self.dev_cards],
+            'village_locations': [(point.row, point.column) for point in self.village_locations],
+            'road_locations': road_location_list,
+            'ROW': self.ROWS,
+            'COLUMN': self.COLUMNS,
+            'dice_rolled': self.dice_rolled,
+            'dev_card_index': self.dev_card_index,
+            'game_phase': self.game_phase
         }
     def board_to_json(self) -> str:
         return json.dumps(self.to_dict(), indent=4)
     
     @classmethod
     def from_dict(cls, data):
-        board = cls(int(data['num_of_players']), int(data['point_limit']))
+        board: Board = cls(int(data['num_of_players']), int(data['point_limit']))
         board.turn = int(data['turn'])
         board.tiles = [[Tile.from_dict(tile) for tile in row] for row in data['tiles']]
         board.robbed_tile = Tile.from_dict(data['robbed_tile']) if data['robbed_tile'] else None
-        board.points = {tuple(map(int, k.strip('()').split(', '))): Point.from_dict(v) for k, v in data['points'].items()}
+        board.points = {(int(k[1:-1].split(', ')[0]), int(k[1:-1].split(', ')[1])) : Point.from_dict(v) for k, v in data['points'].items()}
         board.players = {int(k): Player.from_dict(v) for k, v in data['players'].items()}
         board.dev_cards = [Dev_card.from_dict(card) for card in data['dev_cards']]
+        board.point_limit = int(data['point_limit'])
+        board.village_locations = [board.get_point_board(int(k[1:-1].split(', ')[0]), int(k[1:-1].split(', ')[1])) for k in data['village_location']]
+        board.road_locations = [set([board.get_point_board(int(k[1:-1].split(', ')[0]), int(k[1:-1].split(', ')[1])), board.get_point_board(int(k[1:-1].split(', ')[2]), int(k[1:-1].split(', ')[3]))]) for k in data['road loactions']]
+        board.robbed_tile = board.tiles[int(data['robbed_tile'][1:-1].split(', ')[0])][int(data['robbed_tile'][1:-1].split(', ')[1])]
+        board.ROWS, board.COLUMNS = data['ROW'], data['COLUMN']
+        board.num_of_players = int(data['num_of_players'])
+        board.dice_rolled = bool(data['dice_rolled'])
+        board.dev_card_index = int(data['dev_card_index'])
+        board.game_phase = int(data['game_phase'])
         return board
 
 def json_to_board(data):

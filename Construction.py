@@ -52,7 +52,7 @@ class Construction(Indexable):
         
     @classmethod
     def from_dict(cls, data):
-        obj = cls(int(data['type_of']), int(data['player_id']))
+        obj = cls(int(data['type_of']), int(data['player_id']), int(data['i']))
         obj.coord = convert_to_int_list_of_lists(data['coord'])
         obj.price = convert_to_int_dict(data['price'])
         return obj

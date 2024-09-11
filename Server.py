@@ -9,30 +9,36 @@ from Board import Board, Player, Point, Tile, Dev_card
 
 
 def update_player(client_socket: socket.socket, board: Board):
-    json_board = board.board_to_json()
+    json_board = board.board_to_json() + 'EOF'
     client_socket.sendall(json_board.encode('utf-8'))
+    print(f'server: {json_board}')
+    
 
 def send_player_id(client_socket: socket.socket, player_id: int):
-    toSend = json.dumps({"player_id": player_id})
+    toSend = json.dumps({"player_id": player_id}) + "EOF"
     client_socket.sendall(toSend.encode('utf-8'))
-    # time.sleep(1)
+    print(f'server: {toSend}')
+
 
 def send_robb(client_socket: socket.socket):
-    toSend = json.dumps({"robb": "robb"})
+    toSend = json.dumps({"robb": "robb"}) + 'EOF'
     client_socket.sendall(toSend.encode('utf-8'))
+    print(f'server: {toSend}')
 
     
 def send_player_propose(clients: dict[socket.socket:Player], player_id: int, propose: dict[bool:dict[int:int]]):
     for client, id in clients.items():
         if id == player_id:
             continue
-        toSend = json.dumps({"propse": propose})
+        toSend = json.dumps({"propse": propose}) + 'EOF'
         client.sendall(toSend.encode('utf-8'))
+        print(f'server: {toSend}')
 
 def send_seven(clients: dict[socket.socket:Player]):
     for client, id in clients.items():
-        toSend = json.dumps({"seven": "seven"})
+        toSend = json.dumps({"seven": "seven"}) + 'EOF'
         client.sendall(toSend.encode('utf-8'))
+        print(f'server: {toSend}')
 
 def accept_clients(players, gamePlayers) -> dict[socket.socket:Player]:
     server_address = ('0.0.0.0', 50000)
@@ -113,25 +119,24 @@ def player_to_socket(clients: dict, player_id: int)->socket.socket:
             return key
     return None
 
+def end_of_transmition(chunk:str):
+    return chunk[-3:] == 'EOF'
+
 def recive_data(client:socket.socket) -> str:
     # Buffer to hold the incoming data
     buffer = ""
     while True:
         # Continuously receive data in chunks of 4096 bytes
         data = client.recv(4096).decode('utf-8')
-        if not data:
+        if end_of_transmition(data):
+            buffer += data[:-3]
             break
         buffer += data
+    print(f'server recieve: {buffer}')
     return buffer
 
 def receive_action(client_socket):
-    buffer = ""
-    while True:
-        data = client_socket.recv(4096).decode('utf-8')
-        if not data:
-            break
-        buffer += data
-        
+    buffer = recive_data(client_socket)
     data_dict = json.loads(buffer)
     action = data_dict.get('action')
     args = data_dict.get('arguments', {})
@@ -223,8 +228,8 @@ def main():
                     board.robb(tile, player, fromDice=False)
                 else:
                     board.robb(tile, player, fromDice=True)
-                
-        update_players(clients, board)
+                        
+            update_players(clients, board)
     
 if __name__ == '__main__':
     main()

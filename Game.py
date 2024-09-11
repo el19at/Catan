@@ -12,6 +12,7 @@ from Constatnt import LUMBER,BRICK, ORE, WOOL, GRAIN, \
                     MONOPOLY, ROADS_BUILD, SEA, PHASE_FIRST_ROLL,\
                     RESOURCE_TO_STR, RESOURCE_TO_INT, GIVE, TAKE, convert_to_int_dict, EMPTY_PROPOSE
 
+
 COLORS = {
     SEA: pygame.Color('aqua'),
     GRAIN: pygame.Color('gold2'),
@@ -235,7 +236,7 @@ class Game():
         self.draw_rectangle(pygame.Color('white'), pygame.Color('black'), (670, 445), 280, 40, 3)
         
         self.write_text((701,463), 'points:')
-        self.write_text((737, 463), f'{self.board.get_real_points(player)}')
+        self.write_text((737, 463), f'{self.board.get_real_points(self.player)}')
         self.write_text((775,463), 'path:')
         self.write_text((803, 463), f'{self.player.calc_longest_path()}')
         self.write_text((875,463), 'army size: ')
@@ -450,15 +451,6 @@ class Game():
             return
         if intersection and self.build_village_mode:
             self.send_action('build village', {'point': intersection})
-            if 5 - self.player.constructions_counter[VILLAGE] == 0:
-                self.board.place_village(intersection, True)
-                self.force_build_road_mode = True
-            elif 5 - self.player.constructions_counter[VILLAGE] == 1:
-                self.board.place_village(intersection, False, True)
-                self.force_build_road_mode = True
-            else:
-                self.board.place_village(intersection)
-            self.build_village_mode = False
             self.update()
             return
         if intersection and self.build_road_mode:
@@ -536,30 +528,46 @@ class Game():
     def send_action(self, action: str, arguments:dict = {}):
         data = json.dumps({'action': action, 'arguments': {str(arg_name):arg_val.to_index() if isinstance(arg_val, Indexable) else arg_val for arg_name, arg_val in arguments.items()}})
         data_dict = json.loads(data)
-        data = json.dumps(data_dict)
+        data = json.dumps(data_dict) + 'EOF'
         if self.client:
-            self.client.sendall(data)
+            self.client.sendall(data.encode('utf-8'))
+            print(f'client: {data}')
             self.wait_for_server = True
             self.listen_to_server()
+    
+    def get_message(self):
+        # Buffer to hold the incoming data
+        buffer = ''
+        while True:
+            # Continuously receive data in chunks of 4096 bytes
+            data = self.client.recv(4096).decode('utf-8')
+            if data[-3:] == 'EOF':
+                buffer += data[:-3]
+                break
+            buffer += data
+        return buffer
 
     def listen_to_server(self):
         while True:
-            data = self.recive_data()
+            data = self.get_message()
+            print(f'client recieve: {data}')
             data_dict = json.loads(data)
-            if "propose" == data[:7]:
+            if "propose" in data_dict.keys():
                 new_propose = convert_to_int_dict(data_dict["propose"])
                 self.update_player_propose(new_propose)
                 with self.lock:  # Lock to safely update the current proposal
                     self.player_propose = new_propose
                 threading.Thread(target=self.process_proposal).start()
-            elif 'seven' == data[:5]:
+            elif 'seven' in data_dict.keys():
                 self.seven_mode = True
-            elif 'robb' == data[:4]:
+                break
+            elif 'robb' in data_dict.keys():
                 self.button_clicked('knight')
                 self.update()
                 break
             else:
-                self.update_board(self.dict_to_board(data_dict))
+                self.update_board(dict_to_board(data_dict))
+                break
             
     def process_proposal(self):
         while True:
@@ -584,21 +592,6 @@ class Game():
                     if button_text in ['accept', 'refuse']:
                         self.handle_click(event.pos)
                         running = False
-        
-    def dict_to_board(data):
-        json_data = json.loads(data)
-        return json_to_board(json_data)
-
-    def recive_data(self):
-         # Buffer to hold the incoming data
-        buffer = ""
-        while True:
-            # Continuously receive data in chunks of 4096 bytes
-            data = self.client.recv(4096).decode('utf-8')
-            if not data:
-                break
-            buffer += data
-        return buffer
     
     def draw_villages(self):
         for id, player in self.board.players.items():
@@ -710,6 +703,12 @@ class Game():
     
 def distance(pos1, pos2):
     return ((pos1[0]-pos2[0])**2+(pos1[1]-pos2[1])**2)**0.5
+
+def dict_to_board(data):
+    json_data = data
+    if type(data) != type({}):
+        json_data = json.loads(data)
+    return json_to_board(json_data)
 
 def main():
     game = Game(player_id=RED+1)
