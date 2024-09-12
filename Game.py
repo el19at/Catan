@@ -1,5 +1,6 @@
 import socket
 import threading
+import logging
 import pygame
 from pygame import Color
 from Board import Board, Point, json_to_board, Player, Dev_card, Tile
@@ -11,6 +12,7 @@ from Constatnt import LUMBER,BRICK, ORE, WOOL, GRAIN, \
                     BLUE, ORANGE, KNIGHT, VICTORY_POINT, YEAR_OF_PLENTY,\
                     MONOPOLY, ROADS_BUILD, SEA, PHASE_FIRST_ROLL,\
                     RESOURCE_TO_STR, RESOURCE_TO_INT, GIVE, TAKE, convert_to_int_dict, EMPTY_PROPOSE
+
 
 
 COLORS = {
@@ -32,12 +34,10 @@ class Game():
     def __init__(self, player_id,num_of_players: int = 3, point_limit: int = 10, board: Board=None, client:socket = None):
         pygame.init()
         pygame.display.set_caption('Catan')
-        self.board = None
-        if  board:
-            self.board = board
-        else:
-            self.board = Board(num_of_players, point_limit)
+        self.board = board
         self.player_id = player_id
+        # Set up logging configuration
+        logging.basicConfig(filename=f'client{player_id}.log', filemode='w', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
         self.client: socket = None
         if client:
             self.client = client
@@ -68,7 +68,6 @@ class Game():
         self.player_propose[GIVE] = {ORE: 0, LUMBER:0, WOOL:0, BRICK:0, GRAIN:0}
         self.player_propose[TAKE] = {ORE: 0, LUMBER:0, WOOL:0, BRICK:0, GRAIN:0}
         self.button_pos_trade: dict[tuple[int]: tuple] = {}
-        self.board.turn = self.player_id
         self.player: Player = self.board.players[self.player_id]
         self.selected_card: Dev_card = None
         self.client = None
@@ -531,7 +530,7 @@ class Game():
         data = json.dumps(data_dict) + 'EOF'
         if self.client:
             self.client.sendall(data.encode('utf-8'))
-            print(f'client: {data}')
+            logging.info(f'client: {data}')
             self.wait_for_server = True
             self.listen_to_server()
     
@@ -550,7 +549,7 @@ class Game():
     def listen_to_server(self):
         while True:
             data = self.get_message()
-            print(f'client recieve: {data}')
+            logging.info(f'client recieve: {data}')
             data_dict = json.loads(data)
             if "propose" in data_dict.keys():
                 new_propose = convert_to_int_dict(data_dict["propose"])
