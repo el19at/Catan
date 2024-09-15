@@ -1,10 +1,26 @@
 {
+    "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: Python File",
+            "name": "Debug Server",
             "type": "debugpy",
             "request": "launch",
-            "program": "Server.py"
+            "program": "${workspaceFolder}/Server.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Debug Client 1",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/Client.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Debug Client 2",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/Client.py",
+            "console": "integratedTerminal"
         }
     ]
 }

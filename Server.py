@@ -4,7 +4,7 @@ import json
 import logging
 import random
 from sys import argv
-from Constatnt import RED, PHASE_FIRST_VILLAGE, PHASE_SECOND_VILLAGE, PHASE_INGAME, EMPTY_PROPOSE, convert_to_bool_dict, convert_to_int_dict, MONOPOLY, YEAR_OF_PLENTY, KNIGHT, ROADS_BUILD
+from Constatnt import RED, PHASE_FIRST_VILLAGE, PHASE_SECOND_VILLAGE, PHASE_INGAME, EMPTY_PROPOSE, convert_to_bool_dict, convert_to_int_dict, MONOPOLY, YEAR_OF_PLENTY, KNIGHT, ROADS_BUILD, get_message, send_message
 from Board import Board, Player, Point, Tile, Dev_card
 
 clients = {}
@@ -13,36 +13,29 @@ logging.basicConfig(filename='server.log', filemode='w', level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
 def update_player(client_socket: socket.socket, board: Board):
-    json_board = board.board_to_json() + 'EOF'
-    client_socket.sendall(json_board.encode('utf-8'))
-    logging.info(f'server to {clients[client_socket].id if client_socket in clients.keys() else -1}: {json_board}')
-    
+    json_board = board.board_to_json()
+    logging.info(f'send: {json_board}')
+    send_message(client_socket, json_board)
 
 def send_player_id(client_socket: socket.socket, player_id: int):
-    toSend = json.dumps({"player_id": player_id}) + "EOF"
-    client_socket.sendall(toSend.encode('utf-8'))
-    logging.info(f'server to {clients[client_socket].id if client_socket in clients.keys() else -1}: {toSend}')
-
+    toSend = json.dumps({"player_id": player_id})
+    send_message(client_socket, toSend)
 
 def send_robb(client_socket: socket.socket):
-    toSend = json.dumps({"robb": "robb"}) + 'EOF'
-    client_socket.sendall(toSend.encode('utf-8'))
-    logging.info(f'server to {clients[client_socket].id}: {toSend}')
-
+    toSend = json.dumps({"robb": "robb"})
+    send_message(client_socket, toSend)
     
 def send_player_propose(clients: dict[socket.socket:Player], player_id: int, propose: dict[bool:dict[int:int]]):
     for client, id in clients.items():
         if id == player_id:
             continue
-        toSend = json.dumps({"propse": propose}) + 'EOF'
-        client.sendall(toSend.encode('utf-8'))
-        logging.info(f'server to {player_id} {toSend}')
+        toSend = json.dumps({"propse": propose})
+        send_message(client, toSend)
 
 def send_seven(clients: dict[socket.socket:Player]):
     for client, id in clients.items():
-        toSend = json.dumps({"seven": "seven"}) + 'EOF'
-        client.sendall(toSend.encode('utf-8'))
-        logging.info(f'server to {id}: {toSend}')
+        toSend = json.dumps({"seven": "seven"})
+        send_message(client, toSend)
 
 def accept_clients(players, gamePlayers) -> dict[socket.socket:Player]:
     server_address = ('0.0.0.0', 50000)
@@ -63,8 +56,17 @@ def accept_clients(players, gamePlayers) -> dict[socket.socket:Player]:
     return clients
 
 def update_players(clients, board):
+    # threads  = []
     for client in clients.keys():
-        threading.Thread(target=update_player, args=(client, board,)).start()
+        update_player(client, board)
+        """
+        t: threading.Thread = threading.Thread(target=update_player, args=(client, board,))
+        threads.append(t)
+        t.start()
+    for t in threads:
+        t.join()
+    print('end of update players')
+    """
     
 
 def wait_for_player_response(clients: dict, proposer_id: int):
@@ -122,24 +124,9 @@ def player_to_socket(clients: dict, player_id: int)->socket.socket:
             return key
     return None
 
-def end_of_transmition(chunk:str):
-    return chunk[-3:] == 'EOF'
-
-def recive_data(client:socket.socket) -> str:
-    # Buffer to hold the incoming data
-    buffer = ""
-    while True:
-        # Continuously receive data in chunks of 4096 bytes
-        data = client.recv(4096).decode('utf-8')
-        if end_of_transmition(data):
-            buffer += data[:-3]
-            break
-        buffer += data
-    logging.info(f'server recieved from {clients[client].id if client in clients.keys() else -1}: {buffer}')
-    return buffer
-
 def receive_action(client_socket):
-    buffer = recive_data(client_socket)
+    buffer = get_message(client_socket)
+    logging.info(f'get: {buffer}')
     data_dict = json.loads(buffer)
     action = data_dict.get('action')
     args = data_dict.get('arguments', {})
@@ -151,7 +138,7 @@ def main():
     clients = accept_clients(players, board.players)
     board.turn = random.choice([player.id for player in clients.values()])
     starter = board.turn
-    ender = RED + (starter-1) % len(clients)
+    ender = RED + ((starter + board.num_of_players - 1) % board.num_of_players)
     
     for socket, player in clients.items():
         send_player_id(socket, player.id)
@@ -160,18 +147,22 @@ def main():
     
     while not board.win():
         turn_socket = player_to_socket(clients, board.turn)
+        print(board.turn)
         turn_player: Player = clients[turn_socket]
         action = 'start turn'
         dices = -1
         while action != 'end turn':
             action, arguments = receive_action(turn_socket)
             if action == 'end turn':
+                turn = board.turn
                 board.end_turn()
-                if board.game_phase == PHASE_FIRST_VILLAGE and board.turn == ender:
+                if board.game_phase == PHASE_FIRST_VILLAGE and turn == ender:
                     board.game_phase = PHASE_SECOND_VILLAGE
                     board.turn = ender
-                if board.game_phase == PHASE_SECOND_VILLAGE and starter == board.turn:
+                    break
+                if board.game_phase == PHASE_SECOND_VILLAGE and starter == turn:
                     board.game_phase = PHASE_INGAME
+                    break
             elif action == 'buy card':
                 board.buy_dev_card()
                 

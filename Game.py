@@ -11,7 +11,8 @@ from Constatnt import LUMBER,BRICK, ORE, WOOL, GRAIN, \
                     VILLAGE, CITY, ROAD, DEV_CARD, DESERT, WHITE, RED, \
                     BLUE, ORANGE, KNIGHT, VICTORY_POINT, YEAR_OF_PLENTY,\
                     MONOPOLY, ROADS_BUILD, SEA, PHASE_FIRST_ROLL,\
-                    RESOURCE_TO_STR, RESOURCE_TO_INT, GIVE, TAKE, convert_to_int_dict, EMPTY_PROPOSE
+                    RESOURCE_TO_STR, RESOURCE_TO_INT, GIVE, TAKE,\
+                    convert_to_int_dict, EMPTY_PROPOSE, send_message, get_message
 
 
 
@@ -69,10 +70,13 @@ class Game():
         self.player_propose[TAKE] = {ORE: 0, LUMBER:0, WOOL:0, BRICK:0, GRAIN:0}
         self.button_pos_trade: dict[tuple[int]: tuple] = {}
         self.player: Player = self.board.players[self.player_id]
+        pygame.display.set_caption(f'Catan player: {self.player.id}')
         self.selected_card: Dev_card = None
         self.client = None
         self.seven_mode = False
         self.lock = threading.Lock()
+        self.listen_lock = threading.Lock()
+        self.listening = False
         self.update()
     
     def set_client(self, socket):
@@ -512,10 +516,13 @@ class Game():
     def start(self):
         # Update the display
         pygame.display.flip()
-
         # Keep the window open until closed by the user
         running = True
         while running:
+            with self.listen_lock:
+                if not self.is_my_turn() and not self.listening:
+                    threading.Thread(target=self.listen_to_server).start()
+                
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
@@ -523,50 +530,61 @@ class Game():
                     self.handle_click(event.pos)
 
         pygame.quit()    
+    
 
     def send_action(self, action: str, arguments:dict = {}):
         data = json.dumps({'action': action, 'arguments': {str(arg_name):arg_val.to_index() if isinstance(arg_val, Indexable) else arg_val for arg_name, arg_val in arguments.items()}})
         data_dict = json.loads(data)
-        data = json.dumps(data_dict) + 'EOF'
+        data = json.dumps(data_dict)
         if self.client:
-            self.client.sendall(data.encode('utf-8'))
-            logging.info(f'client: {data}')
+            logging.info(f'send:\n{data}')
+            send_message(self.client, data)
             self.wait_for_server = True
             self.listen_to_server()
-    
-    def get_message(self):
-        # Buffer to hold the incoming data
-        buffer = ''
-        while True:
-            # Continuously receive data in chunks of 4096 bytes
-            data = self.client.recv(4096).decode('utf-8')
-            if data[-3:] == 'EOF':
-                buffer += data[:-3]
-                break
-            buffer += data
-        return buffer
 
     def listen_to_server(self):
-        while True:
-            data = self.get_message()
-            logging.info(f'client recieve: {data}')
-            data_dict = json.loads(data)
-            if "propose" in data_dict.keys():
-                new_propose = convert_to_int_dict(data_dict["propose"])
-                self.update_player_propose(new_propose)
-                with self.lock:  # Lock to safely update the current proposal
-                    self.player_propose = new_propose
-                threading.Thread(target=self.process_proposal).start()
-            elif 'seven' in data_dict.keys():
-                self.seven_mode = True
-                break
-            elif 'robb' in data_dict.keys():
-                self.button_clicked('knight')
+        with self.listen_lock:
+            self.listening = True
+        try:
+            while True:
+                # Receive and process data from the server
+                data = get_message(self.client, not self.is_my_turn())
+                logging.info(f'get:\n {data}')
+                if not data:
+                    logging.warning("No data received from server.")
+                    break
+                data_dict = json.loads(data)
+                
+                if "propose" in data_dict:
+                    new_propose = convert_to_int_dict(data_dict["propose"])
+                    with self.lock:
+                        self.player_propose = new_propose
+                    threading.Thread(target=self.process_proposal).start()
+                
+                elif 'seven' in data_dict:
+                    self.seven_mode = True
+                    break
+                
+                elif 'robb' in data_dict:
+                    self.button_clicked('knight')
+                    self.update()
+                    break
+                
+                else:
+                    board = Board.from_dict(data_dict)
+                    self.update_board(board)
+                    break
                 self.update()
-                break
-            else:
-                self.update_board(dict_to_board(data_dict))
-                break
+                with open(f'board{self.player_id}.json', 'w') as file:
+                    file.write(data)
+        
+        except Exception as e:
+            logging.error(f"Error in listen_to_server: {e}")
+        
+        finally:
+            with self.listen_lock:
+                self.listening = False
+
             
     def process_proposal(self):
         while True:

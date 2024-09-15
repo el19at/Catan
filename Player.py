@@ -35,7 +35,7 @@ class Player(Indexable):
     def buy(self, constType:int) -> Construction | None:
         if self.constructions_counter[constType] < 1:
             return None
-        price = self.constructions[constType][0].price
+        price = self.constructions[constType][0].price()
         for resource, amount in self.resources.items():
             if resource in price.keys() and amount < price[resource]:
                 return None
@@ -78,11 +78,11 @@ class Player(Indexable):
         return True
     
     def buy_dev_card(self, dev_card: Dev_card):
-        for resource, amount in dev_card.price.items():
+        for resource, amount in dev_card.price().items():
             if amount > self.resources[resource]:
                 return False
-        for resource, amount in dev_card.price.items():
-            self.resources[resource] -= dev_card.price[resource]
+        for resource, amount in dev_card.price().items():
+            self.resources[resource] -= dev_card.price()[resource]
         dev_card.player_id = self.id
         self.constructions_counter[DEV_CARD] += 1
         return True

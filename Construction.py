@@ -7,7 +7,6 @@ class Construction(Indexable):
         self.player_id = player_id
         self.i = i
         self.coord: list[list['int']] = []
-        self.price = self.init_price()
     
     def equal(self, other: object) -> bool:
         if isinstance(other, Construction):
@@ -24,7 +23,7 @@ class Construction(Indexable):
     def is_placed(self):
         return len(self.coord)>0
     
-    def init_price(self):
+    def price(self):
         if self.type_of == VILLAGE:
             return {LUMBER:1, BRICK:1, WOOL:1, GRAIN:1}
         if self.type_of == CITY:
@@ -47,14 +46,12 @@ class Construction(Indexable):
             'player_id': self.player_id,
             'i': self.i,
             'coord': self.coord,
-            'price': self.price,
         }
         
     @classmethod
     def from_dict(cls, data):
         obj = cls(int(data['type_of']), int(data['player_id']), int(data['i']))
         obj.coord = convert_to_int_list_of_lists(data['coord'])
-        obj.price = convert_to_int_dict(data['price'])
         return obj
 
 def deep_copy(l):

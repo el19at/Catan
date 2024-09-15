@@ -1,4 +1,5 @@
 import ast
+import socket
 DESERT = 0
 SEA = 1
 LUMBER = 2
@@ -10,10 +11,10 @@ VILLAGE = 7
 CITY = 8
 ROAD = 9
 DEV_CARD = 10
-RED = 11
-BLUE = 12
-ORANGE = 13
-WHITE = 14
+RED = 120
+BLUE = 121
+ORANGE = 122
+WHITE = 123
 KNIGHT = 15
 VICTORY_POINT = 16
 MONOPOLY = 17
@@ -52,3 +53,28 @@ def convert_to_int_list_of_lists(string_list):
         list_obj = ast.literal_eval(string_list)
     int_list = [[int(item) for item in sublist] for sublist in list_obj]
     return int_list
+
+def padding(num: int):
+    return (10-len(str(num)))*'0' + str(num)
+
+def send_message(client: socket.socket, message):
+    length_prefix = f"${padding(len(message))}$"  # Prefix with length of the message
+    toSend = length_prefix + message
+    client.sendall(toSend.encode('utf-8'))
+
+def get_message(client, printMessage = False) -> str:
+    if printMessage:
+        data = client.recv(2**18).decode('utf-8')
+        print(len(data))
+        return data[12:]
+    length_prefix = client.recv(12).decode('utf-8')  # Read the length prefix
+    if not length_prefix:
+        raise ConnectionError("Socket connection broken")
+    message_length = int(length_prefix[1:-1])
+    buffer = ''
+    while len(buffer) < message_length:
+        data = client.recv(4096).decode('utf-8')
+        if not data:
+            raise ConnectionError("Socket connection broken")
+        buffer += data
+    return buffer
