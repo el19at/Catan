@@ -62,15 +62,15 @@ def send_message(client: socket.socket, message):
     toSend = length_prefix + message
     client.sendall(toSend.encode('utf-8'))
 
-def get_message(client, printMessage = False) -> str:
-    if printMessage:
-        data = client.recv(2**18).decode('utf-8')
-        print(len(data))
-        return data[12:]
+def get_message(client) -> str:
     length_prefix = client.recv(12).decode('utf-8')  # Read the length prefix
     if not length_prefix:
         raise ConnectionError("Socket connection broken")
-    message_length = int(length_prefix[1:-1])
+    message_length = 0
+    if is_convertible_to_int(length_prefix[1:-1]):
+        message_length = int(length_prefix[1:-1])
+    else:
+        return False
     buffer = ''
     while len(buffer) < message_length:
         data = client.recv(4096).decode('utf-8')
@@ -78,3 +78,10 @@ def get_message(client, printMessage = False) -> str:
             raise ConnectionError("Socket connection broken")
         buffer += data
     return buffer
+
+def is_convertible_to_int(s):
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False

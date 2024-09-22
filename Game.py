@@ -545,43 +545,38 @@ class Game():
     def listen_to_server(self):
         with self.listen_lock:
             self.listening = True
-        try:
-            while True:
-                # Receive and process data from the server
-                data = get_message(self.client, not self.is_my_turn())
-                logging.info(f'get:\n {data}')
-                if not data:
-                    logging.warning("No data received from server.")
-                    break
-                data_dict = json.loads(data)
-                
-                if "propose" in data_dict:
-                    new_propose = convert_to_int_dict(data_dict["propose"])
-                    with self.lock:
-                        self.player_propose = new_propose
-                    threading.Thread(target=self.process_proposal).start()
-                
-                elif 'seven' in data_dict:
-                    self.seven_mode = True
-                    break
-                
-                elif 'robb' in data_dict:
-                    self.button_clicked('knight')
-                    self.update()
-                    break
-                
-                else:
-                    board = Board.from_dict(data_dict)
-                    self.update_board(board)
-                    break
+    
+        while True:
+            # Receive and process data from the server
+            data = get_message(self.client)
+            logging.info(f'get:\n {data}')
+            if not data:
+                logging.warning("No data received from server.")
+                break
+            data_dict = json.loads(data)
+            
+            if "propose" in data_dict:
+                new_propose = convert_to_int_dict(data_dict["propose"])
+                with self.lock:
+                    self.player_propose = new_propose
+                threading.Thread(target=self.process_proposal).start()
+            
+            elif 'seven' in data_dict:
+                self.seven_mode = True
+                break
+            
+            elif 'robb' in data_dict:
+                self.button_clicked('knight')
                 self.update()
-                with open(f'board{self.player_id}.json', 'w') as file:
-                    file.write(data)
-        
-        except Exception as e:
-            logging.error(f"Error in listen_to_server: {e}")
-        
-        finally:
+                break
+            
+            else:
+                board = Board.from_dict(data_dict)
+                self.update_board(board)
+                break
+            self.update()
+            with open(f'board{self.player_id}.json', 'w') as file:
+                file.write(data)
             with self.listen_lock:
                 self.listening = False
 

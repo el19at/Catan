@@ -19,6 +19,7 @@ def update_player(client_socket: socket.socket, board: Board):
 
 def send_player_id(client_socket: socket.socket, player_id: int):
     toSend = json.dumps({"player_id": player_id})
+    logging.info(f'send: {toSend}')
     send_message(client_socket, toSend)
 
 def send_robb(client_socket: socket.socket):
