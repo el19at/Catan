@@ -519,9 +519,9 @@ class Game():
         # Keep the window open until closed by the user
         running = True
         while running:
-            with self.listen_lock:
-                if not self.is_my_turn() and not self.listening:
-                    threading.Thread(target=self.listen_to_server).start()
+            #with self.listen_lock:
+            if not self.is_my_turn():
+                self.listen_to_server()
                 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -543,9 +543,10 @@ class Game():
             self.listen_to_server()
 
     def listen_to_server(self):
+        """
         with self.listen_lock:
             self.listening = True
-    
+        """
         while True:
             # Receive and process data from the server
             data = get_message(self.client)
@@ -575,11 +576,13 @@ class Game():
                 self.update_board(board)
                 break
             self.update()
+            """
             with open(f'board{self.player_id}.json', 'w') as file:
                 file.write(data)
+            
             with self.listen_lock:
                 self.listening = False
-
+            """
             
     def process_proposal(self):
         while True:
